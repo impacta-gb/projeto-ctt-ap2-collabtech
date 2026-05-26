@@ -1,79 +1,30 @@
 name: Documentation
-
 on:
+  workflow_dispatch: 
   push:
     branches:
+      - master
       - main
-  pull_request:
-    branches:
-      - main
-  schedule:
-    # Executa automaticamente uma vez por semana (toda segunda-feira às 00:00 UTC) [cite: 58]
-    - cron: '0 0 * * 1'
-  workflow_dispatch:
-
 permissions:
   contents: read
   pages: write
   id-token: write
-
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
-
 jobs:
-  # JOB 1: Validação e Construção do Site (Roda em PRs e Pushes) [cite: 65]
-  build_site:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        [cite_start]python-version: ["3.10", "3.11"] # Matriz obrigatória [cite: 60]
-    steps:
-      - name: Checkout do Código
-        uses: actions/checkout@v4 # Corrigido para v4 estável
-
-      - name: Configurar Python ${{ matrix.python-version }} com Cache
-        uses: actions/setup-python@v5 # Corrigido para v5 estável
-        with:
-          python-version: ${{ matrix.python-version }}
-          [cite_start]cache: 'pip' # Ativa o cache nativo do pip [cite: 62]
-
-      - name: Instalar Dependências
-        run: |
-          python -m pip install --upgrade pip
-          pip install zensical
-
-      - name: Executar Build do Zensical
-        run: zensical build --clean
-
-      # Usamos a action padrão de upload de artefatos para salvar o site gerado pela matriz
-      - name: Salvar Artefato do Site (Apenas Python 3.11)
-        if: matrix.python-version == '3.11'
-        uses: actions/upload-artifact@v4
-        with:
-          name: site-html
-          path: site/
-
-  # JOB 2: Publicação no GitHub Pages (Bloqueado em PRs) [cite: 65, 72]
-  deploy_site:
-    [cite_start]needs: build_site # Só roda se o build passar [cite: 66]
-    [cite_start]if: github.event_name != 'pull_request' # Bloqueia deploy em PR 
+  deploy:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - [cite_start]name: Baixar Artefato do Site [cite: 69]
-        uses: actions/download-artifact@v4
+      - uses: actions/configure-pages@v6
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
-          name: site-html
-          path: site/
-
-      - name: Upload para o GitHub Pages
-        uses: actions/upload-pages-artifact@v3
+          python-version: 3.x
+      - run: pip install zensical
+      - run: zensical build --clean
+      - uses: actions/upload-pages-artifact@v5
         with:
-          path: site/
-
-      - name: Publicar no GitHub Pages
+          path: site
+      - uses: actions/deploy-pages@v5
         id: deployment
-        uses: actions/deploy-pages@v4
