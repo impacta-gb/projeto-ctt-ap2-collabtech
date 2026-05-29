@@ -1,322 +1,152 @@
-# Sintaxe Básica e Variáveis
+# 📝 Sintaxe Básica e Variáveis
 
-Go possui uma sintaxe limpa e minimalista, intencionalmente projetada para ser fácil de ler e escrever. Nesta seção, veremos os fundamentos da linguagem: como declarar variáveis, os tipos de dados disponíveis e as regras básicas de estrutura de um programa Go.
+Go tem sintaxe limpa e minimalista — sem ponto e vírgula obrigatório, chaves sempre exigidas, e tipagem estática com inferência de tipos.
 
 ---
 
 ## Estrutura de um Arquivo Go
 
-Todo arquivo Go pertence a um **pacote** (`package`). O pacote especial `main` define o ponto de entrada de um programa executável.
+```mermaid
+graph LR
+    A["package main"] --> B["import ..."]
+    B --> C["func main()"]
+    C --> D["Lógica do programa"]
 
-```go
-package main  // Declaração do pacote
-
-import "fmt"  // Importação de pacotes
-
-// Função principal — ponto de entrada do programa
-func main() {
-    fmt.Println("Go é incrível!")
-}
-```
-
-### Regras importantes
-
-- O nome do pacote vem sempre na **primeira linha**
-- As importações ficam logo após a declaração do pacote
-- O Go usa **chaves `{}`** para delimitar blocos de código
-- **Não há ponto e vírgula** ao final das linhas (o compilador os insere automaticamente)
-
-> [!WARNING]
-> Em Go, **importações não utilizadas causam erro de compilação**. Se você importar um pacote e não usá-lo, o programa não compilará.
-
----
-
-## Comentários
-
-```go
-// Comentário de linha única
-
-/*
-   Comentário
-   de múltiplas linhas
-*/
-
-// godoc: comentários acima de funções e tipos
-// são usados para gerar documentação automática
-func Saudar(nome string) string {
-    return "Olá, " + nome
-}
+    style A fill:#00d4b4,color:#000
+    style C fill:#0099ff,color:#fff
 ```
 
 ---
 
 ## Declaração de Variáveis
 
-Go oferece **três formas principais** de declarar variáveis:
+```go 
+package main
 
-### 1. Declaração explícita com `var`
+import "fmt"
 
-```go
-var nome string = "Gopher"
-var idade int = 5
-var ativo bool = true
+func main() {
+    var nome string = "Gopher" // (1)!
+    var ativo = true           // (2)!
+    preco := 29.99             // (3)!
+
+    var ( // (4)!
+        cidade  string = "São Paulo"
+        versao  int    = 22
+        estavel bool   = true
+    )
+
+    fmt.Println(nome, ativo, preco, cidade, versao, estavel)
+}
 ```
 
-### 2. Declaração com inferência de tipo
+1. 📌 Declaração **explícita** — especifica tipo e valor.
+2. 🔍 Declaração com **inferência de tipo** — Go deduz que é `bool`.
+3. ⚡ Forma **curta** com `:=` — a mais usada dentro de funções.
+4. 📦 **Bloco `var`** — agrupa múltiplas declarações de forma organizada.
 
-```go
-var nome = "Gopher"   // Go infere que é string
-var contador = 10     // Go infere que é int
-```
-
-### 3. Declaração curta com `:=` (mais comum)
-
-```go
-nome := "Gopher"
-idade := 5
-preco := 29.99
-```
-
-> [!NOTE]
-> O operador `:=` só pode ser usado **dentro de funções**. Para variáveis globais (nível de pacote), use `var`.
-
-### Declaração múltipla
-
-```go
-// Múltiplas variáveis na mesma linha
-var x, y, z int = 1, 2, 3
-
-// Bloco var
-var (
-    nome    string  = "Go"
-    versao  int     = 22
-    estavel bool    = true
-)
-```
+!!! warning "Atenção — Escopo do `:=`"
+    O operador `:=` **só funciona dentro de funções**. Para variáveis no nível do pacote (globais), use obrigatoriamente `var`.
 
 ---
 
-## Tipos de Dados Primitivos
+## Tipos Primitivos
 
-### Tipos Numéricos
+| Tipo | Tamanho | Faixa / Uso |
+|------|---------|-------------|
+| `int` | 32/64 bits | Inteiros (depende da plataforma) |
+| `int8` / `int16` / `int32` / `int64` | fixo | Inteiros de tamanho específico |
+| `float32` / `float64` | 32/64 bits | Números decimais |
+| `string` | UTF-8 | Sequência de bytes imutável |
+| `bool` | 1 bit | `true` ou `false` |
+| `rune` | 32 bits | Caractere Unicode (alias de `int32`) |
+| `byte` | 8 bits | Byte (alias de `uint8`) |
 
-| Tipo | Tamanho | Faixa de valores |
-|------|---------|-----------------|
-| `int8` | 8 bits | -128 a 127 |
-| `int16` | 16 bits | -32.768 a 32.767 |
-| `int32` | 32 bits | -2.147.483.648 a 2.147.483.647 |
-| `int64` | 64 bits | -9.2×10¹⁸ a 9.2×10¹⁸ |
-| `int` | 32 ou 64 bits (depende da plataforma) | — |
-| `uint` | sem sinal | 0 a 4.294.967.295 (32-bit) |
-| `float32` | 32 bits | precisão simples |
-| `float64` | 64 bits | precisão dupla |
-| `complex64` | 64 bits | números complexos |
-| `complex128` | 128 bits | números complexos |
-
-```go
-var inteiro int = 42
-var flutuante float64 = 3.14159
-var complexo complex128 = 3 + 4i
-```
-
-### Tipo String
-
-Strings em Go são sequências de bytes imutáveis codificadas em UTF-8.
-
-```go
-var saudacao string = "Olá, Mundo!"
-nome := "Gopher"
-
-// Concatenação
-nomeCompleto := "Go " + "Lang"
-
-// String multilinha com backtick (raw string)
-texto := `Esta é uma string
-que ocupa múltiplas
-linhas sem escapes`
-
-// Comprimento em bytes
-fmt.Println(len("Go")) // 2
-```
-
-### Tipo Boolean
-
-```go
-var ativo bool = true
-var inativo bool = false
-
-resultado := 10 > 5  // true
-```
-
-### Tipo Rune e Byte
-
-```go
-var letra rune = 'A'  // alias para int32, representa um caractere Unicode
-var b byte = 'z'      // alias para uint8
-```
+!!! info "Zero Values"
+    Em Go, toda variável declarada sem inicialização recebe um **valor zero** automaticamente: `0` para números, `""` para strings, `false` para booleans e `nil` para ponteiros, slices e maps.
 
 ---
 
-## Zero Values (Valores Padrão)
+## Constantes e `iota`
 
-Em Go, toda variável declarada sem inicialização recebe um **valor zero** automaticamente:
+```go 
+const Pi = 3.14159 // (1)!
 
-| Tipo | Zero Value |
-|------|-----------|
-| `int`, `float64` | `0` |
-| `bool` | `false` |
-| `string` | `""` (string vazia) |
-| ponteiros, slices, maps, channels, funções | `nil` |
-
-```go
-var numero int     // 0
-var texto string   // ""
-var ativo bool     // false
-
-fmt.Println(numero, texto, ativo) // 0  false
-```
-
----
-
-## Constantes
-
-Constantes são valores imutáveis definidos em tempo de compilação.
-
-```go
-const Pi = 3.14159
-const NomeApp = "MeuApp"
-const MaxRetries = 3
-
-// Bloco de constantes
 const (
-    StatusOK    = 200
-    StatusNotFound = 404
-    StatusError    = 500
-)
-```
-
-### `iota` — gerador de constantes sequenciais
-
-```go
-const (
-    Domingo = iota  // 0
-    Segunda         // 1
-    Terça           // 2
-    Quarta          // 3
-    Quinta          // 4
-    Sexta           // 5
-    Sábado          // 6
+    Domingo = iota // (2)!
+    Segunda        // (3)!
+    Terça
+    Quarta
+    Quinta
+    Sexta
+    Sábado
 )
 
 fmt.Println(Segunda) // 1
 fmt.Println(Sexta)   // 5
 ```
 
-> [!TIP]
-> O `iota` é muito útil para criar enumerações em Go, já que a linguagem não possui uma palavra-chave `enum` nativa.
+1. 🔒 Constante simples — valor imutável definido em tempo de compilação.
+2. 🔢 `iota` começa em **0** e incrementa a cada constante no bloco.
+3. ↗️ Cada linha seguinte recebe o próximo valor automaticamente.
+
+!!! tip "Dica — iota como enumeração"
+    O `iota` é a forma idiomática de criar **enumerações** em Go, já que a linguagem não possui a keyword `enum` nativa.
 
 ---
 
 ## Conversão de Tipos
 
-Go é **estritamente tipado** — não há conversões implícitas. Toda conversão deve ser explícita:
-
-```go
+```go 
 var inteiro int = 42
-var flutuante float64 = float64(inteiro)  // int → float64
-var intNovo int = int(flutuante)          // float64 → int
+var flutuante float64 = float64(inteiro) // (1)!
+var intNovo int = int(flutuante)         // (2)!
 
-// String ↔ int com o pacote strconv
 import "strconv"
-
-numero := 123
-texto := strconv.Itoa(numero)         // int → string: "123"
-valor, err := strconv.Atoi("456")     // string → int: 456
+texto := strconv.Itoa(42)               // (3)!
+numero, err := strconv.Atoi("123")      // (4)!
 ```
 
-> [!WARNING]
-> Converter `float64` para `int` **trunca** o valor decimal, sem arredondar:
-> ```go
-> int(3.99) // resultado: 3, não 4
-> ```
+1. 🔄 Conversão `int` → `float64` — sempre explícita em Go.
+2. ✂️ Conversão `float64` → `int` — **trunca** o decimal, não arredonda.
+3. 🔤 Converte inteiro para string usando o pacote `strconv`.
+4. 🔢 Converte string para inteiro — retorna também um `error` caso falhe.
+
+!!! danger "Cuidado — Truncamento silencioso"
+    Converter `float64` para `int` **descarta a parte decimal sem arredondar**:
+    ```go
+    int(3.99) // resultado: 3, não 4!
+    int(9.9)  // resultado: 9, não 10!
+    ```
 
 ---
 
-## Entrada e Saída Básica
+## Formatação com `fmt.Printf`
 
-```go
-package main
+```go 
+nome := "Gopher"
+idade := 5
+versao := 1.22
+ativo := true
 
-import "fmt"
-
-func main() {
-    // Saída
-    fmt.Println("Hello!")           // com quebra de linha
-    fmt.Print("Sem quebra ")        // sem quebra de linha
-    fmt.Printf("Nome: %s\n", "Go") // formatado
-
-    // Entrada
-    var nome string
-    fmt.Print("Digite seu nome: ")
-    fmt.Scan(&nome)
-    fmt.Printf("Olá, %s!\n", nome)
-}
+fmt.Printf("Nome:   %s\n", nome)   // (1)!
+fmt.Printf("Idade:  %d anos\n", idade) // (2)!
+fmt.Printf("Versão: %.2f\n", versao)   // (3)!
+fmt.Printf("Tipo:   %T\n", ativo)      // (4)!
 ```
 
-### Verbos de formatação (`fmt.Printf`)
+1. `%s` → formata como **string**.
+2. `%d` → formata como **inteiro decimal**.
+3. `%.2f` → formata como **float com 2 casas decimais**.
+4. `%T` → exibe o **tipo** da variável, não o valor.
 
-| Verbo | Descrição | Exemplo |
-|-------|-----------|---------|
-| `%v` | Valor padrão | `fmt.Printf("%v", 42)` → `42` |
-| `%T` | Tipo da variável | `fmt.Printf("%T", 42)` → `int` |
-| `%d` | Inteiro decimal | `fmt.Printf("%d", 10)` → `10` |
-| `%f` | Float | `fmt.Printf("%.2f", 3.14)` → `3.14` |
-| `%s` | String | `fmt.Printf("%s", "Go")` → `Go` |
-| `%t` | Boolean | `fmt.Printf("%t", true)` → `true` |
-| `%b` | Binário | `fmt.Printf("%b", 5)` → `101` |
-| `%x` | Hexadecimal | `fmt.Printf("%x", 255)` → `ff` |
-
----
-
-## Exemplo Completo
-
-```go
-package main
-
-import (
-    "fmt"
-    "strconv"
-)
-
-func main() {
-    // Declarações variadas
-    nome := "Gopher"
-    idade := 5
-    versao := 1.22
-    ativo := true
-
-    const MaxConexoes = 100
-
-    // Exibindo com formatação
-    fmt.Printf("Nome:    %s\n", nome)
-    fmt.Printf("Idade:   %d anos\n", idade)
-    fmt.Printf("Versão:  %.2f\n", versao)
-    fmt.Printf("Ativo:   %t\n", ativo)
-    fmt.Printf("Máx. Conexões: %d\n", MaxConexoes)
-
-    // Conversão
-    idadeTexto := strconv.Itoa(idade)
-    fmt.Println("Idade como string: " + idadeTexto)
-}
-```
-
-**Saída:**
-
-```
-Nome:    Gopher
-Idade:   5 anos
-Versão:  1.22
-Ativo:   true
-Máx. Conexões: 100
-Idade como string: 5
-```
+| Verbo | Uso |
+|-------|-----|
+| `%v` | Valor padrão |
+| `%T` | Tipo da variável |
+| `%d` | Inteiro decimal |
+| `%f` / `%.2f` | Float |
+| `%s` | String |
+| `%t` | Boolean |
+| `%b` | Binário |
+| `%x` | Hexadecimal |
