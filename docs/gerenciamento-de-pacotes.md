@@ -142,4 +142,8 @@ graph LR
 | `math/rand` | Números aleatórios |
 
 !!! danger "Cuidado — replace em produção"
+<<<<<<< HEAD
     A diretiva `replace` no `go.mod` é útil para desenvolvimento local, mas **nunca publique um módulo com `replace` apontando para caminhos locais**. Remova antes de fazer release.
+=======
+    A diretiva `replace` no `go.mod` é útil para desenvolvimento local, mas **nunca publique um módulo com `replace` apontando para caminhos locais**. Remova antes de fazer release.
+>>>>>>> 1e1dff4238028d0d750af1eaf7679eae56b4fc9c

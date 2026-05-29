@@ -94,6 +94,10 @@ permalink = true
 [[nav]]
 "🏠 Início" = "index.md"
 
+# Definindo a sequência das páginas para a paginação funcionar:
+[[nav]]
+"🏠 Início" = "index.md"
+
 [[nav]]
 [nav.Fundamentos]
 "🚀 Introdução e Instalação" = "introducao-e-instalacao.md"
@@ -114,4 +118,4 @@ permalink = true
 
 [[nav]]
 [nav.Extra]
-"✅ Testes Automatizados" = "testes-automatizados.md"
+"✅ Testes Automatizados" = "zz-testes-automatizados.md"
