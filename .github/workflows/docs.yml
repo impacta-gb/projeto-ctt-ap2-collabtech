@@ -1,30 +1,75 @@
 name: Documentation
+
 on:
-  workflow_dispatch: 
   push:
     branches:
-      - master
-      - main
+      - [span_7](start_span)main # Executa após o merge de um PR na main[span_7](end_span)
+  pull_request:
+    branches:
+      - [span_8](start_span)main # Executa durante o PR para validação de erros[span_8](end_span)
+  schedule:
+    - [span_9](start_span)cron: '0 0 * * 0' # Executa de forma agendada uma vez por semana[span_9](end_span)
+  workflow_dispatch: # Permite execução manual pela equipe para testes
+
 permissions:
   contents: read
   pages: write
   id-token: write
+
 jobs:
-  deploy:
+  build_site:
+    runs-on: ubuntu-latest
+    strategy:
+      [span_10](start_span)fail-fast: false # Resiliência: impede que a falha de uma versão cancele a outra[span_10](end_span)
+      matrix:
+        [span_11](start_span)python-version: ["3.10", "3.11"] # Matriz multi-ambiente exigida[span_11](end_span)
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip
+        [span_12](start_span)uses: actions/cache@v4 # Otimização de performance[span_12](end_span)
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-pip-${{ matrix.python-version }}-
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          pip install zensical
+
+      - name: Build documentation
+        run: |
+          # [span_13](start_span)[span_14](start_span)Gera o site estático através do Zensical[span_13](end_span)[span_14](end_span)
+          zensical build --clean
+
+      # [span_15](start_span)Upload do Artefato: Isolado no build e restrito à versão estável (3.11)[span_15](end_span)
+      - name: Upload Pages Artifact
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy_site:
+    # [span_16](start_span)Condicional de Segurança estrita: NUNCA executa em Pull Request[span_16](end_span)
+    if: github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+
+    [span_17](start_span)needs: build_site # Desacoplamento de Jobs: aguarda a validação do build[span_17](end_span)
+    runs-on: ubuntu-latest
+
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/configure-pages@v6
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
-        with:
-          python-version: 3.x
-      - run: pip install zensical
-      - run: zensical build --clean
-      - uses: actions/upload-pages-artifact@v5
-        with:
-          path: site
-      - uses: actions/deploy-pages@v5
+      - name: Deploy to GitHub Pages
         id: deployment
+        [span_18](start_span)uses: actions/deploy-pages@v4 # Faz o download e publica o artefato[span_18](end_span)
