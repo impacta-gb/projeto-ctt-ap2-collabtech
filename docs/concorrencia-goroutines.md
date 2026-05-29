@@ -4,6 +4,12 @@ Goroutines são **threads ultra-leves** gerenciadas pelo runtime do Go. Começam
 
 ---
 
+## O que é uma Goroutine?
+
+Uma goroutine é uma **thread leve gerenciada pelo runtime do Go**. Ao contrário das threads do sistema operacional (que consomem cerca de 1–2 MB de memória cada), uma goroutine começa com apenas **~2 KB de stack**, que cresce dinamicamente conforme necessário.
+
+O Go scheduler (agendador) multiplexa N goroutines em M threads do SO — esse modelo é chamado de **M:N scheduling**.
+
 ## Go Scheduler — M:N Threading
 
 ```mermaid
