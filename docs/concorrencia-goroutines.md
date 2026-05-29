@@ -1,167 +1,126 @@
-# Concorrência I: Goroutines
+# ⚡ Concorrência I: Goroutines
 
-A concorrência é um dos pontos mais poderosos e distintivos de Go. A linguagem foi projetada desde o início para facilitar a escrita de programas concorrentes, com primitivas nativas leves e eficientes. O pilar dessa concorrência são as **goroutines**.
+Goroutines são **threads ultra-leves** gerenciadas pelo runtime do Go. Começam com ~2KB de stack e você pode ter milhares rodando simultaneamente.
 
 ---
 
-## O que é uma Goroutine?
+## Go Scheduler — M:N Threading
 
-Uma goroutine é uma **thread leve gerenciada pelo runtime do Go**. Ao contrário das threads do sistema operacional (que consomem cerca de 1–2 MB de memória cada), uma goroutine começa com apenas **~2 KB de stack**, que cresce dinamicamente conforme necessário.
+```mermaid
+graph TD
+    subgraph "Runtime Go"
+        G1[Goroutine 1] --> S[Go Scheduler]
+        G2[Goroutine 2] --> S
+        G3[Goroutine 3] --> S
+        G4[Goroutine 4] --> S
+        S --> T1[Thread OS 1]
+        S --> T2[Thread OS 2]
+    end
+    T1 --> CPU1[CPU Core 1]
+    T2 --> CPU2[CPU Core 2]
 
-O Go scheduler (agendador) multiplexa N goroutines em M threads do SO — esse modelo é chamado de **M:N scheduling**.
+    style S fill:#00d4b4,color:#000
+    style T1 fill:#0099ff,color:#fff
+    style T2 fill:#0099ff,color:#fff
+```
 
-| Comparação | Thread do SO | Goroutine |
-|-----------|-------------|-----------|
+| Aspecto | Thread do SO | Goroutine |
+|---------|-------------|-----------|
 | Memória inicial | ~1–2 MB | ~2 KB |
-| Criação | Custosa (syscall) | Muito barata |
+| Criação | Cara (syscall) | Muito barata |
 | Troca de contexto | Cara | Muito barata |
-| Gerenciamento | SO | Runtime do Go |
-| Quantidade típica | Centenas | Milhares a milhões |
+| Gerenciamento | SO | Runtime Go |
+| Quantidade típica | Centenas | Milhares+ |
 
 ---
 
 ## Criando Goroutines
 
-Para iniciar uma goroutine, basta prefixar uma chamada de função com a palavra-chave `go`:
-
-```go
-package main
-
-import (
-    "fmt"
-    "time"
-)
-
+```go 
 func saudar(nome string) {
     fmt.Printf("Olá, %s!\n", nome)
 }
 
 func main() {
-    go saudar("Alice")  // inicia goroutine
-    go saudar("Bob")    // inicia goroutine
-    go saudar("Carol")  // inicia goroutine
+    go saudar("Alice") // (1)!
+    go saudar("Bob")
+    go saudar("Carol")
 
-    // Sem isso, o programa termina antes das goroutines executarem!
-    time.Sleep(100 * time.Millisecond)
-    fmt.Println("Programa encerrado")
+    time.Sleep(100 * time.Millisecond) // (2)!
 }
 ```
 
-> [!WARNING]
-> O uso de `time.Sleep` para sincronização é **apenas didático**. Na prática, use `sync.WaitGroup` ou channels para coordenar goroutines. Nunca confie em timers para sincronização em produção.
+1. 🚀 A keyword `go` antes de qualquer chamada de função a executa em uma **nova goroutine**.
+2. ⏱️ `time.Sleep` é usado aqui apenas para fins **didáticos** — nunca use para sincronização real.
+
+!!! warning "Atenção — time.Sleep não é sincronização"
+    Usar `time.Sleep` para aguardar goroutines é **impreciso e não confiável**. Use `sync.WaitGroup` ou channels para sincronização correta.
 
 ---
 
-## `sync.WaitGroup` — Aguardando Goroutines
+## `sync.WaitGroup`
 
-O `WaitGroup` é a forma correta de esperar um grupo de goroutines terminar:
+```mermaid
+sequenceDiagram
+    participant M as main
+    participant W as WaitGroup
+    participant G1 as Goroutine 1
+    participant G2 as Goroutine 2
 
-```go
-package main
+    M->>W: Add(2)
+    M->>G1: go worker(1)
+    M->>G2: go worker(2)
+    M->>W: Wait() - bloqueia
+    G1->>W: Done()
+    G2->>W: Done()
+    W->>M: Libera - contador = 0
+```
 
-import (
-    "fmt"
-    "sync"
-)
+```go 
+var wg sync.WaitGroup // (1)!
 
-func trabalhador(id int, wg *sync.WaitGroup) {
-    defer wg.Done()  // sinaliza conclusão ao terminar
-    fmt.Printf("Trabalhador %d iniciando\n", id)
-    // Simulando trabalho...
-    fmt.Printf("Trabalhador %d concluído\n", id)
+for i := 1; i <= 5; i++ {
+    wg.Add(1) // (2)!
+    go func(id int) {
+        defer wg.Done() // (3)!
+        fmt.Printf("Worker %d concluído\n", id)
+    }(i) // (4)!
 }
 
-func main() {
-    var wg sync.WaitGroup
-
-    for i := 1; i <= 5; i++ {
-        wg.Add(1)               // incrementa o contador
-        go trabalhador(i, &wg)  // inicia goroutine
-    }
-
-    wg.Wait()  // bloqueia até o contador chegar a 0
-    fmt.Println("Todos os trabalhadores concluídos!")
-}
+wg.Wait() // (5)!
+fmt.Println("Todos os workers concluídos!")
 ```
 
-**Saída (ordem pode variar):**
-```
-Trabalhador 3 iniciando
-Trabalhador 1 iniciando
-Trabalhador 5 iniciando
-Trabalhador 2 iniciando
-Trabalhador 4 iniciando
-Trabalhador 4 concluído
-...
-Todos os trabalhadores concluídos!
-```
+1. 📦 `WaitGroup` mantém um **contador** interno de goroutines ativas.
+2. ➕ `Add(1)` incrementa o contador — chame **antes** de iniciar a goroutine.
+3. ➖ `Done()` decrementa o contador — use com `defer` para garantir execução.
+4. 🔒 Passe `i` como argumento para evitar **closure bug** (capturar variável do loop).
+5. 🛑 `Wait()` bloqueia até o contador chegar a **zero**.
 
----
-
-## Race Conditions — O Perigo da Concorrência
-
-Quando múltiplas goroutines acessam e modificam a mesma variável sem sincronização, temos uma **condição de corrida (race condition)**:
-
-```go
-// ❌ CÓDIGO COM RACE CONDITION — NÃO FAÇA ISSO
-package main
-
-import (
-    "fmt"
-    "sync"
-)
-
-func main() {
+!!! danger "Cuidado — Race Condition"
+    Múltiplas goroutines acessando a mesma variável sem sincronização causam **comportamento imprevisível**:
+    ```go
+    // ❌ RACE CONDITION
     var contador int
-    var wg sync.WaitGroup
-
     for i := 0; i < 1000; i++ {
-        wg.Add(1)
-        go func() {
-            defer wg.Done()
-            contador++  // RACE CONDITION! Leitura e escrita não atômica
-        }()
+        go func() { contador++ }() // leitura + escrita não atômica!
     }
-
-    wg.Wait()
-    fmt.Println("Contador:", contador) // Resultado imprevisível!
-}
-```
-
-> [!WARNING]
-> Race conditions são bugs extremamente difíceis de reproduzir e depurar. O resultado pode variar a cada execução. Use sempre mecanismos de sincronização ao compartilhar estado entre goroutines.
-
-### Detectando Race Conditions
-
-O Go tem uma ferramenta embutida para detecção:
-
-```bash
-go run -race main.go
-go test -race ./...
-```
+    ```
+    Execute `go run -race main.go` para detectar race conditions automaticamente.
 
 ---
 
 ## `sync.Mutex` — Exclusão Mútua
 
-Um **Mutex** garante que apenas uma goroutine acesse um recurso por vez:
-
-```go
-package main
-
-import (
-    "fmt"
-    "sync"
-)
-
+```go 
 type ContadorSeguro struct {
-    mu    sync.Mutex
+    mu    sync.Mutex // (1)!
     valor int
 }
 
 func (c *ContadorSeguro) Incrementar() {
-    c.mu.Lock()
-    defer c.mu.Unlock()
+    c.mu.Lock()         // (2)!
+    defer c.mu.Unlock() // (3)!
     c.valor++
 }
 
@@ -170,229 +129,43 @@ func (c *ContadorSeguro) Valor() int {
     defer c.mu.Unlock()
     return c.valor
 }
-
-func main() {
-    contador := &ContadorSeguro{}
-    var wg sync.WaitGroup
-
-    for i := 0; i < 1000; i++ {
-        wg.Add(1)
-        go func() {
-            defer wg.Done()
-            contador.Incrementar()
-        }()
-    }
-
-    wg.Wait()
-    fmt.Println("Contador:", contador.Valor()) // Sempre 1000
-}
 ```
 
-### `sync.RWMutex` — Leitura/Escrita
+1. 🔒 `sync.Mutex` garante que apenas **uma goroutine por vez** acessa a seção crítica.
+2. 🔐 `Lock()` — adquire o lock. Outras goroutines **bloqueiam** aqui se já estiver locked.
+3. 🔓 `Unlock()` com `defer` — garante que o lock **sempre** será liberado ao sair da função.
 
-Quando há muito mais leituras do que escritas, use `RWMutex`:
-
-```go
-type Cache struct {
-    mu   sync.RWMutex
-    dados map[string]string
-}
-
-func (c *Cache) Get(chave string) (string, bool) {
-    c.mu.RLock()         // múltiplos leitores simultâneos OK
-    defer c.mu.RUnlock()
-    v, ok := c.dados[chave]
-    return v, ok
-}
-
-func (c *Cache) Set(chave, valor string) {
-    c.mu.Lock()          // exclusão total para escrita
-    defer c.mu.Unlock()
-    c.dados[chave] = valor
-}
-```
+!!! tip "Dica — RWMutex para mais performance"
+    Quando há muito mais **leituras** do que escritas, use `sync.RWMutex`:
+    ```go
+    mu.RLock()   // múltiplos leitores simultâneos ✅
+    mu.RUnlock()
+    mu.Lock()    // apenas um escritor por vez
+    mu.Unlock()
+    ```
 
 ---
 
-## `sync/atomic` — Operações Atômicas
+## Closure Bug — Armadilha Clássica
 
-Para operações simples em inteiros, `atomic` é mais eficiente que um mutex:
-
-```go
-package main
-
-import (
-    "fmt"
-    "sync"
-    "sync/atomic"
-)
-
-func main() {
-    var contador int64
-    var wg sync.WaitGroup
-
-    for i := 0; i < 1000; i++ {
-        wg.Add(1)
-        go func() {
-            defer wg.Done()
-            atomic.AddInt64(&contador, 1) // operação atômica segura
-        }()
-    }
-
-    wg.Wait()
-    fmt.Println("Contador:", atomic.LoadInt64(&contador)) // 1000
-}
-```
-
----
-
-## `sync.Once` — Executar Apenas Uma Vez
-
-Útil para inicialização preguiçosa (lazy initialization) thread-safe:
-
-```go
-package main
-
-import (
-    "fmt"
-    "sync"
-)
-
-type Singleton struct {
-    dados string
-}
-
-var (
-    instancia *Singleton
-    once      sync.Once
-)
-
-func GetInstancia() *Singleton {
-    once.Do(func() {
-        fmt.Println("Inicializando singleton...")
-        instancia = &Singleton{dados: "valor inicial"}
-    })
-    return instancia
-}
-
-func main() {
-    var wg sync.WaitGroup
-
-    for i := 0; i < 5; i++ {
-        wg.Add(1)
-        go func() {
-            defer wg.Done()
-            s := GetInstancia()
-            fmt.Println("Usando:", s.dados)
-        }()
-    }
-
-    wg.Wait()
-}
-// "Inicializando singleton..." aparece apenas UMA vez
-```
-
----
-
-## Exemplo Prático — Download Paralelo
-
-```go
-package main
-
-import (
-    "fmt"
-    "sync"
-    "time"
-)
-
-type Resultado struct {
-    URL   string
-    Bytes int
-    Erro  error
-}
-
-func baixar(url string) Resultado {
-    // Simulando download
-    time.Sleep(100 * time.Millisecond)
-    return Resultado{URL: url, Bytes: len(url) * 100}
-}
-
-func baixarEmParalelo(urls []string) []Resultado {
-    resultados := make([]Resultado, len(urls))
-    var wg sync.WaitGroup
-
-    for i, url := range urls {
-        wg.Add(1)
-        go func(idx int, u string) {
-            defer wg.Done()
-            resultados[idx] = baixar(u)
-        }(i, url)
-    }
-
-    wg.Wait()
-    return resultados
-}
-
-func main() {
-    urls := []string{
-        "https://go.dev",
-        "https://github.com",
-        "https://golang.org",
-        "https://pkg.go.dev",
-    }
-
-    inicio := time.Now()
-    resultados := baixarEmParalelo(urls)
-    elapsed := time.Since(inicio)
-
-    for _, r := range resultados {
-        fmt.Printf("%-25s → %d bytes\n", r.URL, r.Bytes)
-    }
-    fmt.Printf("\nTempo total: %v (paralelo vs ~400ms sequencial)\n", elapsed)
-}
-```
-
----
-
-## Goroutines e Closures
-
-Cuidado com closures em loops — um erro clássico:
-
-```go
-// ❌ BUG COMUM — todas as goroutines capturam a mesma variável i
+```go 
+// ❌ BUG — todas capturam o mesmo i
 for i := 0; i < 5; i++ {
     go func() {
-        fmt.Println(i)  // i pode ser 5 em todas!
+        fmt.Println(i) // (1)!
     }()
 }
 
-// ✅ CORRETO — passa i como argumento (cria uma cópia)
+// ✅ CORRETO — passa i como argumento
 for i := 0; i < 5; i++ {
-    go func(n int) {
-        fmt.Println(n)  // cada goroutine tem seu próprio n
+    go func(n int) { // (2)!
+        fmt.Println(n)
     }(i)
 }
-
-// ✅ TAMBÉM CORRETO — cria variável local no loop (Go 1.22+)
-for i := range 5 {
-    go func() {
-        fmt.Println(i)  // Go 1.22+ cria nova variável por iteração
-    }()
-}
 ```
 
-> [!WARNING]
-> O bug da closure em loop é um dos mais frequentes em código Go concorrente. Execute `go run -race` regularmente para detectar esse tipo de problema antes de ir para produção.
+1. ⚠️ A closure captura a **variável `i`**, não o valor. Quando a goroutine executa, `i` pode já ser 5.
+2. ✅ Passar como argumento cria uma **cópia independente** do valor para cada goroutine.
 
----
-
-## Goroutines — Boas Práticas
-
-| ✅ Faça | ❌ Evite |
-|--------|---------|
-| Use `WaitGroup` para sincronizar | Usar `time.Sleep` para sincronizar |
-| Proteja estado compartilhado com Mutex | Acessar variáveis compartilhadas sem lock |
-| Use `-race` no desenvolvimento | Ignorar race conditions |
-| Passe dados por valor para goroutines | Compartilhar ponteiros sem cuidado |
-| Garanta que goroutines terminam | Goroutines "vazando" (goroutine leak) |
-| Comunique por channels (próxima seção) | Compartilhar memória diretamente |
+!!! warning "Atenção — Goroutine Leak"
+    Uma goroutine que **nunca termina** (bloqueada para sempre) é um goroutine leak. Isso consome memória progressivamente. Use sempre `context` ou `channel` de cancelamento para sinalizar término.
