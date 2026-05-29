@@ -1,6 +1,7 @@
 # 🚀 Introdução e Instalação
 
-Go (também conhecida como **Golang**) é uma linguagem de programação open-source desenvolvida pelo Google em 2007. Projetada para ser simples, eficiente e escalável para sistemas modernos.
+Go (também conhecida como Golang) é uma linguagem de programação de código aberto desenvolvida pelo Google em 2007 e lançada publicamente em 2009. Ela foi projetada por Robert Griesemer, Rob Pike e Ken Thompson com um objetivo claro: ser simples, eficiente e altamente escalável para sistemas modernos.
+
 
 ---
 
