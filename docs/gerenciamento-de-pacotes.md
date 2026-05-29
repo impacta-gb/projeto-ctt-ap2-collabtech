@@ -1,323 +1,145 @@
-# Gerenciamento de Pacotes (Go Modules)
+# 📦 Gerenciamento de Pacotes (Go Modules)
 
-Go Modules é o sistema oficial de gerenciamento de dependências do Go, introduzido na versão 1.11 e se tornando padrão a partir do Go 1.16. Ele resolve os problemas do `GOPATH` e permite que projetos Go existam em **qualquer diretório** do sistema, com controle preciso de versões.
-
----
-
-## Conceitos Fundamentais
-
-| Conceito | Descrição |
-|---------|-----------|
-| **Módulo** | Uma coleção de pacotes Go com um caminho de módulo e controle de versão |
-| **Pacote** | Um diretório com arquivos `.go` que compartilham o mesmo `package` |
-| **`go.mod`** | Arquivo de manifesto do módulo (dependências e versão do Go) |
-| **`go.sum`** | Arquivo de checksums para verificação de integridade |
+Go Modules é o sistema oficial de dependências desde o Go 1.16 — sem GOPATH, projetos em qualquer diretório, controle de versão semântico.
 
 ---
 
-## Criando um Novo Módulo
+## Estrutura de um Módulo
 
-```bash
-# Crie e entre no diretório do projeto
-mkdir meu-projeto
-cd meu-projeto
+```mermaid
+graph TD
+    MOD[go.mod\ngo.sum] --> PKG1[pkg/calculadora]
+    MOD --> PKG2[pkg/utils]
+    MOD --> CMD[cmd/main.go]
+    MOD --> INT[internal/config]
+    PKG1 --> EXT[Dependências externas\ngithub.com/...]
 
-# Inicializa o módulo
-go mod init github.com/seu-usuario/meu-projeto
-```
-
-O arquivo `go.mod` gerado terá a seguinte estrutura:
-
-```
-module github.com/seu-usuario/meu-projeto
-
-go 1.22
-```
-
-> [!NOTE]
-> O caminho do módulo geralmente corresponde ao repositório onde o código será hospedado. Para projetos internos ou locais, qualquer string é válida (ex: `meu-projeto`), mas o padrão é usar o caminho do repositório.
-
----
-
-## Estrutura de um Projeto Go
-
-```
-meu-projeto/
-├── go.mod
-├── go.sum
-├── main.go
-├── internal/           ← pacotes privados do módulo
-│   └── config/
-│       └── config.go
-├── pkg/                ← pacotes públicos reutilizáveis
-│   └── utils/
-│       └── utils.go
-└── cmd/                ← múltiplos executáveis
-    ├── api/
-    │   └── main.go
-    └── worker/
-        └── main.go
+    style MOD fill:#00d4b4,color:#000
+    style EXT fill:#0099ff,color:#fff
 ```
 
 ---
 
-## Pacotes Internos
+## Criando um Módulo
 
-### Criando um Pacote
+```bash 
+mkdir meu-projeto && cd meu-projeto # (1)!
+go mod init github.com/usuario/meu-projeto # (2)!
+```
+
+1. 📁 Crie e entre na pasta do projeto.
+2. 🚀 Inicializa o módulo com o **caminho do módulo** — geralmente a URL do repositório.
+
+O arquivo `go.mod` gerado:
 
 ```go
-// arquivo: pkg/calculadora/calculadora.go
-package calculadora
+module github.com/usuario/meu-projeto // (1)!
 
-// Funções exportadas começam com maiúscula
-func Somar(a, b float64) float64 {
-    return a + b
-}
-
-func Subtrair(a, b float64) float64 {
-    return a - b
-}
-
-// Função privada — só acessível dentro do pacote
-func validar(n float64) bool {
-    return n >= 0
-}
+go 1.22 // (2)!
 ```
 
-### Importando o Pacote
-
-```go
-// arquivo: main.go
-package main
-
-import (
-    "fmt"
-    "github.com/seu-usuario/meu-projeto/pkg/calculadora"
-)
-
-func main() {
-    resultado := calculadora.Somar(10, 5)
-    fmt.Println("Soma:", resultado) // Soma: 15
-}
-```
-
-> [!TIP]
-> Em Go, o **nome do identificador determina sua visibilidade**: começar com **maiúscula** = exportado (público), começar com **minúscula** = não exportado (privado ao pacote). Não existe `public` ou `private`.
+1. 📦 Caminho do módulo — identificador único usado nas importações.
+2. 🔢 Versão mínima do Go exigida pelo módulo.
 
 ---
 
-## Adicionando Dependências Externas
+## Adicionando Dependências
 
-### `go get` — Baixar um pacote
-
-```bash
-# Baixa e adiciona ao go.mod
-go get github.com/gin-gonic/gin
-
-# Versão específica
-go get github.com/gin-gonic/gin@v1.9.1
-
-# Última versão minor compatível
-go get github.com/gin-gonic/gin@latest
+```bash 
+go get github.com/gin-gonic/gin        # (1)!
+go get github.com/gin-gonic/gin@v1.9.1 # (2)!
+go get github.com/gin-gonic/gin@none   # (3)!
+go mod tidy                            # (4)!
 ```
 
-Após o `go get`, o `go.mod` é atualizado:
+1. ⬇️ Baixa a **versão mais recente** e adiciona ao `go.mod`.
+2. 📌 Fixa em uma **versão específica**.
+3. 🗑️ **Remove** a dependência do projeto.
+4. 🧹 Sincroniza — remove não usadas e adiciona faltantes.
 
-```
-module github.com/seu-usuario/meu-projeto
-
-go 1.22
-
-require (
-    github.com/gin-gonic/gin v1.9.1
-)
-```
-
-### `go mod tidy` — Sincronizando Dependências
-
-```bash
-# Remove dependências não usadas e adiciona as faltantes
-go mod tidy
-```
-
-> [!TIP]
-> Execute `go mod tidy` sempre antes de fazer commit. Ele mantém os arquivos `go.mod` e `go.sum` em sincronia com o código real.
+!!! tip "Dica — Sempre rode go mod tidy"
+    Execute `go mod tidy` antes de todo commit para manter `go.mod` e `go.sum` sincronizados com o código real.
 
 ---
 
-## O Arquivo `go.sum`
+## O arquivo `go.sum`
 
-O `go.sum` contém os **checksums criptográficos** de cada módulo baixado, garantindo que as dependências não foram adulteradas:
+```mermaid
+graph LR
+    GM[go.mod\nlista dependências] --> GS[go.sum\nchecksums criptográficos]
+    GS --> V[Verificação de\nintegridade]
+    V --> S[✅ Seguro para usar]
 
+    style GS fill:#0099ff,color:#fff
+    style S fill:#06d6a0,color:#000
 ```
-github.com/gin-gonic/gin v1.9.1 h1:4idEAncQnU5cB7BeOkPtxjfCSye0AAm1R0RVIqJ+Jmg=
-github.com/gin-gonic/gin v1.9.1/go.mod h1:hPrL7YRdiu2BCbJFsXLOCmLiO0DL+DM7bT0muJp+/y8=
-```
 
-> [!WARNING]
-> **Nunca edite `go.sum` manualmente.** Ele é gerado automaticamente pelo Go toolchain. Sempre commite o `go.sum` junto com o `go.mod`.
+!!! warning "Atenção — Nunca edite go.sum manualmente"
+    O `go.sum` é gerado automaticamente e contém **checksums criptográficos** de cada módulo. Editá-lo manualmente corrompe a verificação de integridade. Sempre commite `go.sum` junto com `go.mod`.
 
 ---
 
-## Comandos Principais do Go Modules
+## Comandos Principais
 
-| Comando | Descrição |
-|---------|-----------|
-| `go mod init <caminho>` | Cria um novo módulo |
-| `go mod tidy` | Sincroniza dependências com o código |
-| `go mod download` | Baixa todas as dependências para o cache local |
-| `go mod verify` | Verifica checksums das dependências |
-| `go mod vendor` | Copia dependências para a pasta `vendor/` |
-| `go mod graph` | Exibe o grafo de dependências |
-| `go get <pacote>@<versão>` | Adiciona ou atualiza uma dependência |
-| `go get <pacote>@none` | Remove uma dependência |
-| `go list -m all` | Lista todos os módulos do projeto |
+```bash 
+go mod init   # (1)!
+go mod tidy   # (2)!
+go mod download # (3)!
+go mod verify # (4)!
+go mod vendor # (5)!
+go list -m all # (6)!
+```
+
+1. 🆕 Cria um novo módulo.
+2. 🔄 Sincroniza dependências com o código.
+3. ⬇️ Baixa todas as dependências para o cache local.
+4. 🔍 Verifica checksums das dependências.
+5. 📦 Copia dependências para a pasta `vendor/`.
+6. 📋 Lista todos os módulos do projeto.
 
 ---
 
 ## Versionamento Semântico (SemVer)
 
-Go Modules usa **Semantic Versioning** (SemVer): `MAJOR.MINOR.PATCH`
+```mermaid
+graph LR
+    V["v1.4.2"] --> MA["MAJOR: 1\nBreaking changes"]
+    V --> MI["MINOR: 4\nNovas features\n(compatível)"]
+    V --> PA["PATCH: 2\nBug fixes\n(compatível)"]
 
-| Componente | Quando muda | Exemplo |
-|-----------|------------|---------|
-| `MAJOR` | Breaking changes (incompatível) | `v1.0.0` → `v2.0.0` |
-| `MINOR` | Novas funcionalidades (compatível) | `v1.0.0` → `v1.1.0` |
-| `PATCH` | Correções de bugs (compatível) | `v1.0.0` → `v1.0.1` |
-
-### Módulos v2+
-
-Para módulos com breaking changes (v2+), o caminho do módulo muda:
-
-```go
-// go.mod de um módulo v2
-module github.com/usuario/lib/v2
-
-go 1.22
+    style MA fill:#ef476f,color:#fff
+    style MI fill:#0099ff,color:#fff
+    style PA fill:#06d6a0,color:#000
 ```
 
-```go
-// Importação
-import "github.com/usuario/lib/v2/pacote"
-```
-
----
-
-## Substituições Locais com `replace`
-
-Útil durante o desenvolvimento para usar uma versão local de um módulo:
-
-```
-module github.com/seu-usuario/app
-
-go 1.22
-
-require (
-    github.com/sua-org/lib v1.0.0
-)
-
-replace github.com/sua-org/lib => ../lib
-```
-
-> [!WARNING]
-> Remova as diretivas `replace` com caminhos locais antes de publicar seu módulo ou fazer deploy em produção.
-
----
-
-## Exemplo Prático — Usando o pacote `resty`
-
-Vamos criar um cliente HTTP usando uma dependência externa:
-
-```bash
-mkdir cliente-http
-cd cliente-http
-go mod init github.com/exemplo/cliente-http
-go get github.com/go-resty/resty/v2
-```
-
-```go
-// main.go
-package main
-
-import (
-    "fmt"
-
-    "github.com/go-resty/resty/v2"
-)
-
-type Usuario struct {
-    ID    int    `json:"id"`
-    Nome  string `json:"name"`
-    Email string `json:"email"`
-}
-
-func main() {
-    client := resty.New()
-
-    var usuario Usuario
-    resp, err := client.R().
-        SetResult(&usuario).
-        Get("https://jsonplaceholder.typicode.com/users/1")
-
-    if err != nil {
-        fmt.Println("Erro:", err)
-        return
-    }
-
-    fmt.Printf("Status: %d\n", resp.StatusCode())
-    fmt.Printf("Nome:   %s\n", usuario.Nome)
-    fmt.Printf("Email:  %s\n", usuario.Email)
-}
-```
-
-```bash
-go run main.go
-```
+!!! info "Módulos v2+"
+    Para versões com **breaking changes** (v2+), o caminho do módulo muda:
+    ```go
+    module github.com/usuario/lib/v2
+    ```
+    E nas importações:
+    ```go
+    import "github.com/usuario/lib/v2/pacote"
+    ```
 
 ---
 
 ## Pacotes da Biblioteca Padrão
 
-Go possui uma biblioteca padrão rica. Alguns dos pacotes mais usados:
-
 | Pacote | Uso |
 |--------|-----|
 | `fmt` | Formatação e I/O |
-| `os` | Sistema operacional, arquivos |
-| `io` | Interfaces de I/O |
-| `bufio` | I/O com buffer |
+| `os` | Sistema operacional e arquivos |
 | `strings` | Manipulação de strings |
 | `strconv` | Conversão de tipos |
-| `math` | Operações matemáticas |
-| `math/rand` | Números aleatórios |
-| `time` | Data, hora, duração |
 | `net/http` | Cliente e servidor HTTP |
 | `encoding/json` | Serialização JSON |
-| `encoding/xml` | Serialização XML |
 | `sync` | Primitivas de sincronização |
 | `context` | Contexto e cancelamento |
-| `log` | Logging básico |
 | `errors` | Criação e inspeção de erros |
 | `testing` | Framework de testes |
-| `sort` | Algoritmos de ordenação |
-| `regexp` | Expressões regulares |
-| `path/filepath` | Manipulação de caminhos |
+| `time` | Data, hora e duração |
+| `math/rand` | Números aleatórios |
 
----
-
-## Publicando seu Módulo
-
-Para tornar seu módulo público e disponível via `go get`:
-
-1. Hospede o código em um repositório público (GitHub, GitLab, etc.)
-2. Adicione tags de versão usando Git:
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-3. O módulo ficará disponível automaticamente em [pkg.go.dev](https://pkg.go.dev) após a primeira vez que alguém o importar.
-
-> [!NOTE]
-> O Go não possui um registry central como o npm (Node.js) ou PyPI (Python). Qualquer repositório Git acessível publicamente funciona como registry — basta a URL do repositório.
+!!! danger "Cuidado — replace em produção"
+    A diretiva `replace` no `go.mod` é útil para desenvolvimento local, mas **nunca publique um módulo com `replace` apontando para caminhos locais**. Remova antes de fazer release.
