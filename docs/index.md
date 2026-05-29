@@ -1,173 +1,105 @@
+# 🚀 Introdução e Instalação
+
+Go (também conhecida como **Golang**) é uma linguagem de programação open-source desenvolvida pelo Google em 2007. Projetada para ser simples, eficiente e escalável para sistemas modernos.
+
 ---
-icon: lucide/rocket
----
 
-# Get started
+## Ecossistema Go
 
-For full documentation visit [zensical.org](https://zensical.org/docs/).
+```mermaid
+graph TD
+    A[🧑‍💻 Desenvolvedor] --> B[Código .go]
+    B --> C[go build]
+    B --> D[go run]
+    B --> E[go test]
+    C --> F[Binário Executável]
+    D --> G[Execução Direta]
+    E --> H[Resultado dos Testes]
+    F --> I[Deploy / Distribuição]
 
-## Commands
-
-* [`zensical new`][new] - Create a new project
-* [`zensical serve`][serve] - Start local web server
-* [`zensical build`][build] - Build your site
-
-  [new]: https://zensical.org/docs/usage/new/
-  [serve]: https://zensical.org/docs/usage/preview/
-  [build]: https://zensical.org/docs/usage/build/
-
-## Examples
-
-### Admonitions
-
-> Go to [documentation](https://zensical.org/docs/authoring/admonitions/)
-
-!!! note
-
-    This is a **note** admonition. Use it to provide helpful information.
-
-!!! warning
-
-    This is a **warning** admonition. Be careful!
-
-### Details
-
-> Go to [documentation](https://zensical.org/docs/authoring/admonitions/#collapsible-blocks)
-
-??? info "Click to expand for more info"
-
-    This content is hidden until you click to expand it.
-    Great for FAQs or long explanations.
-
-## Code Blocks
-
-> Go to [documentation](https://zensical.org/docs/authoring/code-blocks/)
-
-``` python hl_lines="2" title="Code blocks"
-def greet(name):
-    print(f"Hello, {name}!") # (1)!
-
-greet("Python")
+    style A fill:#00d4b4,color:#000
+    style F fill:#0099ff,color:#fff
+    style I fill:#06d6a0,color:#000
 ```
 
-1.  > Go to [documentation](https://zensical.org/docs/authoring/code-blocks/#code-annotations)
+---
 
-    Code annotations allow to attach notes to lines of code.
+## Por que aprender Go?
 
-Code can also be highlighted inline: `#!python print("Hello, Python!")`.
+| Área | Exemplos de uso |
+|------|----------------|
+| Back-end e APIs | Servidores HTTP, REST APIs, gRPC |
+| DevOps e CLIs | Docker, Kubernetes, Terraform |
+| Sistemas distribuídos | Microserviços, mensageria |
+| Cloud | AWS Lambda, Google Cloud |
 
-## Content tabs
+---
 
-> Go to [documentation](https://zensical.org/docs/authoring/content-tabs/)
+## Instalando o Go
 
-=== "Python"
-
-    ``` python
-    print("Hello from Python!")
+=== "Linux"
+    ```bash
+    wget https://go.dev/dl/go1.22.0.linux-amd64.tar.gz
+    sudo rm -rf /usr/local/go
+    sudo tar -C /usr/local -xzf go1.22.0.linux-amd64.tar.gz
+    echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+    source ~/.bashrc
+    go version
     ```
 
-=== "Rust"
-
-    ``` rs
-    println!("Hello from Rust!");
+=== "macOS"
+    ```bash
+    brew install go
+    go version
     ```
 
-## Diagrams
+=== "Windows"
+    ```bash
+    # Baixe o instalador .msi em https://go.dev/dl/
+    # Execute e siga os passos. Depois:
+    go version
+    ```
 
-> Go to [documentation](https://zensical.org/docs/authoring/diagrams/)
+!!! info "Versão mínima"
+    A versão mínima recomendada é **Go 1.20**. Sempre use a versão mais recente disponível em [go.dev/dl](https://go.dev/dl).
 
-``` mermaid
-graph LR
-  A[Start] --> B{Error?};
-  B -->|Yes| C[Hmm...];
-  C --> D[Debug];
-  D --> B;
-  B ---->|No| E[Yay!];
+---
+
+## Hello, World!
+
+```go 
+package main // (1)!
+
+import "fmt" // (2)!
+
+func main() {
+    fmt.Println("Olá!") // (3)!
+}
 ```
 
-## Footnotes
+1. 📦 Todo arquivo Go pertence a um **pacote**. O pacote `main` é o ponto de entrada do programa.
+2. 🔗 Importa o pacote `fmt` da biblioteca padrão — responsável por entrada e saída formatada.
+3. 🚀 A função `main()` é obrigatória no pacote `main` — é onde a execução começa.
+4. 🖨️ `Println` imprime o texto seguido de uma quebra de linha automática.
 
-> Go to [documentation](https://zensical.org/docs/authoring/footnotes/)
+!!! tip "Dica — Go Playground"
+    Teste código Go diretamente no navegador sem instalar nada: [go.dev/play](https://go.dev/play) 🎮
 
-Here's a sentence with a footnote.[^1]
+---
 
-Hover it, to see a tooltip.
+## Ferramentas Essenciais
 
-[^1]: This is the footnote.
+| Comando | Descrição |
+|---------|-----------|
+| `go run` | Compila e executa diretamente |
+| `go build` | Gera um binário executável |
+| `go test` | Executa os testes |
+| `go fmt` | Formata o código automaticamente |
+| `go vet` | Analisa o código em busca de erros |
+| `go mod init` | Inicializa um novo módulo |
 
+!!! warning "Atenção — Variáveis de Ambiente"
+    Verifique se o Go está no PATH após a instalação. Se o comando `go version` não for reconhecido, reinicie o terminal ou adicione manualmente ao PATH do sistema.
 
-## Formatting
-
-> Go to [documentation](https://zensical.org/docs/authoring/formatting/)
-
-- ==This was marked (highlight)==
-- ^^This was inserted (underline)^^
-- ~~This was deleted (strikethrough)~~
-- H~2~O
-- A^T^A
-- ++ctrl+alt+del++
-
-## Icons, Emojis
-
-> Go to [documentation](https://zensical.org/docs/authoring/icons-emojis/)
-
-* :sparkles: `:sparkles:`
-* :rocket: `:rocket:`
-* :tada: `:tada:`
-* :memo: `:memo:`
-* :eyes: `:eyes:`
-
-## Maths
-
-> Go to [documentation](https://zensical.org/docs/authoring/math/)
-
-$$
-\cos x=\sum_{k=0}^{\infty}\frac{(-1)^k}{(2k)!}x^{2k}
-$$
-
-!!! warning "Needs configuration"
-    Note that MathJax is included via a `script` tag on this page and is not
-    configured in the generated default configuration to avoid including it
-    in a pages that do not need it. See the documentation for details on how
-    to configure it on all your pages if they are more Maths-heavy than these
-    simple starter pages.
-
-<script id="MathJax-script" src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
-<script>
-  window.MathJax = {
-    tex: {
-      inlineMath: [["\\(", "\\)"]],
-      displayMath: [["\\[", "\\]"]],
-      processEscapes: true,
-      processEnvironments: true
-    },
-    options: {
-      ignoreHtmlClass: ".*|",
-      processHtmlClass: "arithmatex"
-    }
-  };
-
-  document$.subscribe(() => {
-    MathJax.startup.output.clearCache()
-    MathJax.typesetClear()
-    MathJax.texReset()
-    MathJax.typesetPromise()
-  })
-</script>
-
-## Task Lists
-
-> Go to [documentation](https://zensical.org/docs/authoring/lists/#using-task-lists)
-
-* [x] Install Zensical
-* [x] Configure `zensical.toml`
-* [x] Write amazing documentation
-* [ ] Deploy anywhere
-
-## Tooltips
-
-> Go to [documentation](https://zensical.org/docs/authoring/tooltips/)
-
-[Hover me][example]
-
-  [example]: https://example.com "I'm a tooltip!"
+!!! danger "Cuidado — Versões Antigas"
+    Não use versões anteriores ao Go 1.18 — elas não possuem suporte a **Generics** e **Fuzzing**, recursos importantes para projetos modernos.
