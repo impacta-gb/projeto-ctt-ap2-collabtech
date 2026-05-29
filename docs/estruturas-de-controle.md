@@ -1,302 +1,175 @@
-# Estruturas de Controle
+# 🔀 Estruturas de Controle
 
-As estruturas de controle determinam o **fluxo de execução** de um programa. Go possui um conjunto enxuto e poderoso: `if`, `for` e `switch`. Notavelmente, **Go não tem `while`** — o `for` cobre todos os casos de repetição.
+Go possui apenas três estruturas de controle: `if`, `for` e `switch`. Não existe `while` — o `for` cobre todos os casos de repetição.
+
+---
+
+## Fluxo de Controle
+
+```mermaid
+flowchart TD
+    A[Início] --> B{if / switch}
+    B -->|true| C[Bloco executado]
+    B -->|false| D[else / default]
+    C --> E{for loop}
+    D --> E
+    E -->|continua| E
+    E -->|break / fim| F[Fim]
+
+    style A fill:#00d4b4,color:#000
+    style B fill:#0099ff,color:#fff
+    style E fill:#9c27b0,color:#fff
+    style F fill:#06d6a0,color:#000
+```
 
 ---
 
 ## `if` / `else if` / `else`
 
-A estrutura condicional em Go é parecida com C, mas **sem parênteses** ao redor da condição.
+```go 
+temperatura := 28
 
-```go
-package main
-
-import "fmt"
-
-func main() {
-    temperatura := 28
-
-    if temperatura > 35 {
-        fmt.Println("Muito quente!")
-    } else if temperatura > 25 {
-        fmt.Println("Agradável.")
-    } else if temperatura > 15 {
-        fmt.Println("Um pouco frio.")
-    } else {
-        fmt.Println("Frio!")
-    }
+if temperatura > 35 { // (1)!
+    fmt.Println("Muito quente!")
+} else if temperatura > 25 { // (2)!
+    fmt.Println("Agradável.")
+} else {
+    fmt.Println("Frio!")
 }
 ```
 
-**Saída:**
-```
-Agradável.
+1. 🚫 Sem parênteses ao redor da condição — diferente de C e Java.
+2. 🔗 O `else if` encadeia condições em sequência.
+
+!!! warning "Atenção — Chaves obrigatórias"
+    Em Go, as **chaves `{}` são sempre obrigatórias**, mesmo em blocos de uma única linha. Não é possível omiti-las como em C ou JavaScript.
+
+### `if` com instrução de inicialização
+
+```go 
+if numero, err := strconv.Atoi("42"); err == nil { // (1)!
+    fmt.Printf("Número: %d\n", numero)
+} else {
+    fmt.Println("Erro:", err)
+}
+// numero e err NÃO existem aqui fora (2)!
 ```
 
-> [!WARNING]
-> As **chaves `{}` são obrigatórias** em Go, mesmo que o bloco tenha apenas uma linha. Ao contrário de C ou Java, não é possível omiti-las.
+1. ⚡ A variável `numero` é declarada **dentro do if** e existe apenas naquele bloco.
+2. 🔒 O escopo fica limitado ao bloco — não "vaza" para fora.
+
+!!! tip "Dica — Padrão idiomático"
+    Declarar variáveis dentro do `if` é muito comum em Go para tratar erros sem poluir o escopo externo.
 
 ---
 
-### `if` com Instrução de Inicialização
+## `for` — O único loop
 
-Go permite declarar uma variável **dentro do próprio `if`**. Ela fica disponível apenas no escopo do bloco condicional.
+```mermaid
+flowchart LR
+    A[Clássico\nfor i:=0; i<n; i++] --> D[Loop]
+    B[While\nfor condição] --> D
+    C[Infinito\nfor] --> D
+    E[Range\nfor i, v := range] --> D
+    D --> F[break / continue]
 
-```go
-package main
+    style D fill:#0099ff,color:#fff
+```
 
-import (
-    "fmt"
-    "strconv"
-)
+### Clássico
 
-func main() {
-    // numero só existe dentro do bloco if/else
-    if numero, err := strconv.Atoi("42"); err == nil {
-        fmt.Printf("Número convertido: %d\n", numero)
-    } else {
-        fmt.Printf("Erro na conversão: %v\n", err)
-    }
+```go 
+for i := 0; i < 5; i++ { // (1)!
+    fmt.Println(i)
 }
 ```
 
-> [!TIP]
-> Esse padrão é **muito comum em Go** para tratar erros retornados por funções sem poluir o escopo externo com variáveis desnecessárias.
+1. 🔢 Três partes: **inicialização** `;` **condição** `;` **pós-iteração** — separadas por `;`.
 
----
+### Como `while`
 
-## `for` — O Único Loop de Go
-
-Go tem **apenas um tipo de loop**: o `for`. Mas ele pode ser usado de três formas diferentes.
-
-### 1. `for` Clássico (estilo C)
-
-```go
-for inicialização; condição; pós-iteração {
-    // corpo
-}
-```
-
-```go
-for i := 0; i < 5; i++ {
-    fmt.Printf("Iteração %d\n", i)
-}
-```
-
-**Saída:**
-```
-Iteração 0
-Iteração 1
-Iteração 2
-Iteração 3
-Iteração 4
-```
-
----
-
-### 2. `for` como `while`
-
-Omitindo a inicialização e o pós-iteração:
-
-```go
+```go 
 contador := 1
-
-for contador <= 5 {
+for contador <= 10 { // (1)!
     fmt.Println(contador)
     contador++
 }
 ```
 
----
+1. 🔄 Omitindo inicialização e pós-iteração, o `for` se comporta como um `while`.
 
-### 3. `for` Infinito
+### `for range` — iterando coleções
 
-```go
-for {
-    fmt.Println("Rodando para sempre...")
-    // Use break para sair
-    break
-}
-```
-
----
-
-### 4. `for range` — Iterando sobre coleções
-
-O `for range` é a forma idiomática de iterar sobre strings, arrays, slices, maps e channels.
-
-```go
-// Iterando sobre um slice
+```go 
 frutas := []string{"maçã", "banana", "laranja"}
 
-for indice, fruta := range frutas {
-    fmt.Printf("[%d] %s\n", indice, fruta)
+for i, fruta := range frutas { // (1)!
+    fmt.Printf("[%d] %s\n", i, fruta)
 }
-```
 
-**Saída:**
-```
-[0] maçã
-[1] banana
-[2] laranja
-```
-
-```go
-// Ignorando o índice com _
-for _, fruta := range frutas {
+for _, fruta := range frutas { // (2)!
     fmt.Println(fruta)
 }
-
-// Iterando sobre um map
-capitais := map[string]string{
-    "Brasil":    "Brasília",
-    "Argentina": "Buenos Aires",
-    "Chile":     "Santiago",
-}
-
-for pais, capital := range capitais {
-    fmt.Printf("%s → %s\n", pais, capital)
-}
-
-// Iterando sobre uma string (caractere por caractere)
-for i, char := range "Go!" {
-    fmt.Printf("Posição %d: %c\n", i, char)
-}
 ```
 
----
+1. 📋 `range` retorna dois valores: **índice** e **elemento**.
+2. 🗑️ Use `_` para descartar o índice quando não precisar dele.
 
-### Controle de Loop: `break` e `continue`
+!!! tip "Dica — range em Maps e Strings"
+    O `for range` também funciona em **maps** (retorna chave e valor) e **strings** (retorna índice e `rune`).
 
-```go
+### `break` e `continue`
+
+```go 
 for i := 0; i < 10; i++ {
     if i == 3 {
-        continue  // Pula para a próxima iteração
+        continue // (1)!
     }
     if i == 7 {
-        break     // Sai do loop completamente
+        break // (2)!
     }
     fmt.Println(i)
 }
 // Saída: 0 1 2 4 5 6
 ```
 
-### Labels em Loops Aninhados
-
-```go
-externo:
-for i := 0; i < 3; i++ {
-    for j := 0; j < 3; j++ {
-        if j == 1 {
-            break externo  // Sai do loop externo
-        }
-        fmt.Printf("i=%d j=%d\n", i, j)
-    }
-}
-// Saída: i=0 j=0
-```
-
-> [!WARNING]
-> Use labels com moderação. O uso excessivo pode tornar o código difícil de ler e manter.
+1. ⏭️ `continue` pula para a **próxima iteração** sem sair do loop.
+2. 🛑 `break` **sai do loop** completamente.
 
 ---
 
 ## `switch`
 
-O `switch` em Go é mais poderoso que em outras linguagens:
-
-- **Não precisa de `break`** entre os cases (o comportamento padrão já é parar após o match)
-- Pode comparar **qualquer tipo de dado**, não apenas inteiros
-- Pode ter **múltiplos valores** em um mesmo case
-- Pode ser usado **sem expressão** (como um `if-else` encadeado)
-
-### `switch` Básico
-
-```go
-dia := "quarta"
-
-switch dia {
-case "segunda", "terça", "quarta", "quinta", "sexta":
-    fmt.Println("Dia útil")
-case "sábado", "domingo":
-    fmt.Println("Fim de semana!")
-default:
-    fmt.Println("Dia inválido")
-}
-```
-
----
-
-### `switch` com Expressão Inicializadora
-
-```go
-switch hora := 14; {
-case hora < 12:
-    fmt.Println("Bom dia!")
-case hora < 18:
-    fmt.Println("Boa tarde!")
-default:
-    fmt.Println("Boa noite!")
-}
-```
-
----
-
-### `switch` sem Expressão (substituto do `if-else`)
-
-```go
+```go 
 nota := 85
 
-switch {
+switch { // (1)!
 case nota >= 90:
     fmt.Println("A — Excelente")
-case nota >= 80:
+case nota >= 80: // (2)!
     fmt.Println("B — Bom")
 case nota >= 70:
     fmt.Println("C — Regular")
-default:
+default: // (3)!
     fmt.Println("D — Insuficiente")
 }
 ```
 
----
+1. 🎯 `switch` sem expressão funciona como um `if-else` encadeado.
+2. ✅ Não precisa de `break` entre os cases — o Go **para automaticamente** após o match.
+3. 🔁 O `default` é executado quando **nenhum case** corresponde.
 
-### `fallthrough` — Forçando a queda entre cases
+!!! info "Diferença do C/Java"
+    Em Go, o `switch` **não faz fallthrough por padrão**. Para forçar a execução do próximo case, use explicitamente a keyword `fallthrough`.
 
-Use `fallthrough` para executar o próximo case mesmo sem corresponder à condição:
+!!! warning "Atenção — `fallthrough` incondicional"
+    O `fallthrough` em Go é **sempre executado**, sem verificar a condição do próximo case. Use com muito cuidado.
 
-```go
-x := 1
+### Type Switch — verificando tipos
 
-switch x {
-case 1:
-    fmt.Println("Case 1")
-    fallthrough
-case 2:
-    fmt.Println("Case 2 (executado pelo fallthrough)")
-case 3:
-    fmt.Println("Case 3 (não executado)")
-}
-```
-
-**Saída:**
-```
-Case 1
-Case 2 (executado pelo fallthrough)
-```
-
-> [!WARNING]
-> `fallthrough` em Go é **incondicional** — ele sempre executa o próximo case, independentemente da condição. Use com cautela.
-
----
-
-### `switch` em Tipos (Type Switch)
-
-Muito usado para verificar o tipo dinâmico de uma interface:
-
-```go
+```go 
 func verificarTipo(v interface{}) {
-    switch tipo := v.(type) {
+    switch tipo := v.(type) { // (1)!
     case int:
         fmt.Printf("Inteiro: %d\n", tipo)
     case string:
@@ -304,54 +177,26 @@ func verificarTipo(v interface{}) {
     case bool:
         fmt.Printf("Boolean: %t\n", tipo)
     default:
-        fmt.Printf("Tipo desconhecido: %T\n", tipo)
+        fmt.Printf("Outro tipo: %T\n", tipo)
     }
 }
-
-func main() {
-    verificarTipo(42)
-    verificarTipo("hello")
-    verificarTipo(true)
-    verificarTipo(3.14)
-}
 ```
 
-**Saída:**
-```
-Inteiro: 42
-String: hello
-Boolean: true
-Tipo desconhecido: float64
-```
+1. 🔍 A sintaxe `v.(type)` é exclusiva do **type switch** — inspeciona o tipo dinâmico de uma interface.
 
 ---
 
-## Comparação de Estruturas de Controle
+## FizzBuzz — Exemplo Completo
 
-| Estrutura | Uso principal |
-|-----------|--------------|
-| `if / else` | Decisões simples com condições booleanas |
-| `for` clássico | Repetição com contador |
-| `for` como `while` | Repetição enquanto condição é verdadeira |
-| `for range` | Iteração sobre coleções |
-| `switch` | Múltiplas comparações sobre um valor |
-| Type switch | Verificação de tipo dinâmico |
-
----
-
-## Exemplo Completo — FizzBuzz
-
-Um clássico exercício que combina `for` e condicionais:
-
-```go
+```go 
 package main
 
 import "fmt"
 
 func main() {
-    for i := 1; i <= 30; i++ {
+    for i := 1; i <= 30; i++ { // (1)!
         switch {
-        case i%15 == 0:
+        case i%15 == 0: // (2)!
             fmt.Println("FizzBuzz")
         case i%3 == 0:
             fmt.Println("Fizz")
@@ -363,3 +208,6 @@ func main() {
     }
 }
 ```
+
+1. 🔢 Itera de 1 a 30 usando `for` clássico.
+2. ➗ Testa divisibilidade por 15 primeiro (múltiplo de 3 E de 5) para evitar falsos positivos.

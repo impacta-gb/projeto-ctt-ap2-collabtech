@@ -62,7 +62,11 @@ graph LR
         C[Capacity: 5]
     end
     subgraph Array interno
+<<<<<<< HEAD
+        AR[maçã | banana | laranja | _ | _]
+=======
         AR["maçã, banana, laranja, _, _"]
+>>>>>>> 1e1dff4238028d0d750af1eaf7679eae56b4fc9c
     end
 
     style Slice fill:#1a1d2b,stroke:#0099ff
