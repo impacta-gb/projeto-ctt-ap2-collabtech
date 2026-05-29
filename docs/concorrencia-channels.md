@@ -1,143 +1,102 @@
-# Concorrência II: Channels
-
-Se goroutines são as unidades de execução concorrente em Go, **channels** são os tubos por onde elas se comunicam. A filosofia do Go é:
+# 🔗 Concorrência II: Channels
 
 > *"Não comunique compartilhando memória; compartilhe memória comunicando."*
 
-Channels permitem que goroutines troquem dados de forma segura, eliminando a necessidade de locks para muitos cenários.
+Channels são **tubos tipados** por onde goroutines trocam dados com segurança.
 
 ---
 
-## O que é um Channel?
+## Como Channels Funcionam
 
-Um channel é um **duto tipado** por onde valores fluem entre goroutines. Ele é seguro para uso concorrente por natureza.
+```mermaid
+sequenceDiagram
+    participant G1 as Goroutine A
+    participant CH as Channel
+    participant G2 as Goroutine B
 
-```
-goroutine A  ──[valor]──►  channel  ──[valor]──►  goroutine B
+    G1->>CH: ch <- "valor" (envia)
+    Note over CH: Bloqueia até receptor
+    CH->>G2: v := <-ch (recebe)
+    G2->>G2: Processa "valor"
 ```
 
 ---
 
 ## Criando e Usando Channels
 
-```go
-package main
+```go 
+ch := make(chan string) // (1)!
 
-import "fmt"
+go func() {
+    ch <- "Olá do canal!" // (2)!
+}()
 
-func main() {
-    // Criando um channel de string
-    ch := make(chan string)
-
-    // Enviando para o channel em uma goroutine
-    go func() {
-        ch <- "Olá do canal!"  // envia valor
-    }()
-
-    // Recebendo do channel (bloqueia até receber)
-    mensagem := <-ch
-    fmt.Println(mensagem) // Olá do canal!
-}
+mensagem := <-ch // (3)!
+fmt.Println(mensagem)
 ```
 
-### Sintaxe Básica
-
-```go
-ch := make(chan int)    // channel de int (sem buffer)
-ch <- 42               // enviar valor (operador <-)
-valor := <-ch          // receber valor
-<-ch                   // receber e descartar o valor
-```
+1. 📦 `make(chan Tipo)` cria um channel **sem buffer** (síncrono).
+2. 📤 `ch <- valor` **envia** um valor. Bloqueia até haver um receptor.
+3. 📥 `<-ch` **recebe** um valor. Bloqueia até haver um valor disponível.
 
 ---
 
-## Channels com Buffer
+## Channel com Buffer vs Sem Buffer
 
-Por padrão, channels são **sem buffer** (síncronos) — o envio bloqueia até que haja um receptor, e vice-versa.
+```mermaid
+graph LR
+    subgraph Sem Buffer
+        G1A[Goroutine A] -->|bloqueia| C1[chan]
+        C1 -->|libera quando recebido| G2A[Goroutine B]
+    end
+    subgraph Com Buffer
+        G1B[Goroutine A] -->|não bloqueia se vazio| C2[chan buffer=3\n_ _ _]
+        C2 -->|bloqueia se cheio| G2B[Goroutine B]
+    end
 
-**Channels com buffer** aceitam um número limitado de valores sem um receptor imediato:
+    style C1 fill:#0099ff,color:#fff
+    style C2 fill:#00d4b4,color:#000
+```
 
-```go
-// Channel sem buffer — envio e recebimento devem estar prontos
-ch1 := make(chan int)
+```go 
+// Sem buffer — síncrono
+ch1 := make(chan int) // (1)!
 
-// Channel com buffer de capacidade 3
-ch2 := make(chan int, 3)
-
-ch2 <- 1  // não bloqueia (buffer disponível)
+// Com buffer de 3
+ch2 := make(chan int, 3) // (2)!
+ch2 <- 1  // não bloqueia
 ch2 <- 2  // não bloqueia
 ch2 <- 3  // não bloqueia
-// ch2 <- 4  // BLOQUEARIA — buffer cheio!
+// ch2 <- 4  ← bloquearia! (3)!
 
 fmt.Println(<-ch2) // 1
-fmt.Println(<-ch2) // 2
 ```
 
-| Tipo | Comportamento no envio | Comportamento no recebimento |
-|------|----------------------|------------------------------|
-| Sem buffer | Bloqueia até ter receptor | Bloqueia até ter valor |
-| Com buffer | Bloqueia se buffer cheio | Bloqueia se buffer vazio |
+1. 🔄 **Sem buffer** — envio e recebimento devem estar prontos ao mesmo tempo.
+2. 📦 **Com buffer** — aceita até 3 valores sem um receptor imediato.
+3. 🛑 O 4º envio bloquearia pois o buffer estaria cheio.
+
+!!! warning "Atenção — Fechar channels"
+    Apenas o **produtor** (quem envia) deve fechar um channel. Enviar para um channel fechado causa **panic**.
+    ```go
+    close(ch)        // ✅ feche apenas no produtor
+    ch <- valor      // ❌ PANIC se ch já estiver fechado
+    ```
 
 ---
 
-## Fechando Channels
+## Direção de Channels
 
-Um channel pode ser **fechado** para sinalizar que não haverá mais envios:
-
-```go
-package main
-
-import "fmt"
-
-func gerarNumeros(ch chan int, n int) {
-    for i := 0; i < n; i++ {
-        ch <- i
-    }
-    close(ch) // sinaliza que não haverá mais valores
-}
-
-func main() {
-    ch := make(chan int)
-    go gerarNumeros(ch, 5)
-
-    // for range lê até o channel ser fechado
-    for num := range ch {
-        fmt.Println(num)
-    }
-    // Saída: 0 1 2 3 4
-}
-```
-
-### Verificando se o Channel foi Fechado
-
-```go
-valor, ok := <-ch
-if !ok {
-    fmt.Println("Channel fechado!")
-}
-```
-
-> [!WARNING]
-> Apenas o **produtor** (quem envia) deve fechar um channel. Enviar para um channel fechado causa **panic**. Fechar um channel duas vezes também causa **panic**.
-
----
-
-## Direção de Channels em Parâmetros
-
-Você pode restringir a direção de um channel em parâmetros de funções para tornar a intenção clara:
-
-```go
-// Apenas envia para o channel
-func produtor(ch chan<- int) {
+```go 
+func produtor(ch chan<- int) { // (1)!
     for i := 0; i < 5; i++ {
         ch <- i
     }
     close(ch)
 }
 
-// Apenas recebe do channel
-func consumidor(ch <-chan int) {
-    for v := range ch {
+func consumidor(ch <-chan int) { // (2)!
+    for v := range ch { // (3)!
         fmt.Println("Recebido:", v)
     }
 }
@@ -149,253 +108,89 @@ func main() {
 }
 ```
 
-> [!TIP]
-> Restringir a direção de channels em assinaturas de funções é uma **boa prática** — o compilador garante que a função não use o channel de forma não intencional.
+1. 📤 `chan<-` — channel **somente envio**. O compilador impede leituras.
+2. 📥 `<-chan` — channel **somente recebimento**. O compilador impede envios.
+3. 🔄 `for range` em channel lê valores até o channel ser **fechado**.
+
+!!! tip "Dica — Restrinja a direção"
+    Restringir a direção de channels em parâmetros de funções documenta a intenção e evita bugs detectados em **tempo de compilação**.
 
 ---
 
 ## `select` — Multiplexando Channels
 
-O `select` permite esperar em múltiplos channels simultaneamente, executando o case do primeiro que estiver pronto:
-
 ```go
-package main
+ch1 := make(chan string)
+ch2 := make(chan string)
 
-import (
-    "fmt"
-    "time"
-)
-
-func main() {
-    ch1 := make(chan string)
-    ch2 := make(chan string)
-
-    go func() {
-        time.Sleep(200 * time.Millisecond)
-        ch1 <- "resultado do canal 1"
-    }()
-
-    go func() {
-        time.Sleep(100 * time.Millisecond)
-        ch2 <- "resultado do canal 2"
-    }()
-
-    // Espera pelo primeiro que chegar
-    for i := 0; i < 2; i++ {
-        select {
-        case msg1 := <-ch1:
-            fmt.Println(msg1)
-        case msg2 := <-ch2:
-            fmt.Println(msg2)
-        }
-    }
-}
-// Saída:
-// resultado do canal 2
-// resultado do canal 1
-```
-
-### `select` com `default` — Não Bloqueante
-
-```go
-ch := make(chan int, 1)
-
-select {
-case v := <-ch:
-    fmt.Println("Recebido:", v)
-default:
-    fmt.Println("Nenhum valor disponível — continuando...")
+select { // (1)!
+case msg := <-ch1: // (2)!
+    fmt.Println("Canal 1:", msg)
+case msg := <-ch2:
+    fmt.Println("Canal 2:", msg)
+case <-time.After(2 * time.Second): // (3)!
+    fmt.Println("Timeout!")
+default: // (4)!
+    fmt.Println("Nenhum canal pronto")
 }
 ```
 
-### `select` com Timeout
-
-```go
-import "time"
-
-ch := make(chan string)
-
-select {
-case resultado := <-ch:
-    fmt.Println("Resultado:", resultado)
-case <-time.After(2 * time.Second):
-    fmt.Println("Timeout! Operação demorou demais.")
-}
-```
+1. 🎯 `select` aguarda o **primeiro channel que ficar pronto**.
+2. 🎲 Se múltiplos channels estiverem prontos ao mesmo tempo, um é escolhido **aleatoriamente**.
+3. ⏱️ `time.After` retorna um channel que envia após o tempo especificado — útil para timeout.
+4. ⚡ `default` é executado **imediatamente** se nenhum channel estiver pronto (não bloqueante).
 
 ---
 
-## Padrões Comuns com Channels
+## Padrão Pipeline
 
-### 1. Pipeline
+```mermaid
+graph LR
+    G[gerar\n2,3,4,5] -->|chan int| Q[quadrado\nn*n] -->|chan int| P[print\n4,9,16,25]
 
-Encadeie goroutines onde a saída de uma é a entrada da próxima:
+    style G fill:#00d4b4,color:#000
+    style Q fill:#0099ff,color:#fff
+    style P fill:#06d6a0,color:#000
+```
 
-```go
-package main
-
-import "fmt"
-
-func gerar(nums ...int) <-chan int {
+```go 
+func gerar(nums ...int) <-chan int { // (1)!
     out := make(chan int)
     go func() {
-        for _, n := range nums {
-            out <- n
-        }
+        for _, n := range nums { out <- n }
         close(out)
     }()
     return out
 }
 
-func quadrado(in <-chan int) <-chan int {
+func quadrado(in <-chan int) <-chan int { // (2)!
     out := make(chan int)
     go func() {
-        for n := range in {
-            out <- n * n
-        }
+        for n := range in { out <- n * n }
         close(out)
     }()
     return out
 }
 
 func main() {
-    // Pipeline: gerar → quadrado
     c := gerar(2, 3, 4, 5)
-    out := quadrado(c)
-
+    out := quadrado(c) // (3)!
     for v := range out {
         fmt.Println(v) // 4, 9, 16, 25
     }
 }
 ```
 
-### 2. Fan-Out / Fan-In
+1. 🏭 Estágio **produtor** — gera valores e os envia para o channel.
+2. ⚙️ Estágio **transformador** — lê, processa e envia para o próximo estágio.
+3. 🔗 Os estágios são **encadeados** — a saída de um é a entrada do próximo.
 
-Distribua trabalho para múltiplos workers e colete os resultados:
-
-```go
-package main
-
-import (
-    "fmt"
-    "sync"
-)
-
-func worker(id int, jobs <-chan int, results chan<- int, wg *sync.WaitGroup) {
-    defer wg.Done()
-    for j := range jobs {
-        resultado := j * j  // processamento
-        results <- resultado
-        fmt.Printf("Worker %d processou job %d → %d\n", id, j, resultado)
-    }
-}
-
-func main() {
-    jobs := make(chan int, 10)
-    results := make(chan int, 10)
-    var wg sync.WaitGroup
-
-    // Fan-Out: 3 workers
-    for w := 1; w <= 3; w++ {
-        wg.Add(1)
-        go worker(w, jobs, results, &wg)
-    }
-
-    // Envia 9 jobs
-    for j := 1; j <= 9; j++ {
-        jobs <- j
-    }
-    close(jobs)
-
-    // Fecha results quando todos os workers terminarem
-    go func() {
-        wg.Wait()
-        close(results)
-    }()
-
-    // Fan-In: coleta todos os resultados
-    total := 0
-    for r := range results {
-        total += r
-    }
-    fmt.Println("Soma dos quadrados:", total) // 285
-}
-```
-
-### 3. Canal de Cancelamento com `context`
-
-```go
-package main
-
-import (
-    "context"
-    "fmt"
-    "time"
-)
-
-func trabalharComContexto(ctx context.Context, id int) {
-    for {
-        select {
-        case <-ctx.Done():
-            fmt.Printf("Worker %d cancelado: %v\n", id, ctx.Err())
-            return
-        default:
-            fmt.Printf("Worker %d trabalhando...\n", id)
-            time.Sleep(500 * time.Millisecond)
-        }
-    }
-}
-
-func main() {
-    // Cancela automaticamente após 1.5 segundos
-    ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
-    defer cancel()
-
-    for i := 1; i <= 3; i++ {
-        go trabalharComContexto(ctx, i)
-    }
-
-    time.Sleep(2 * time.Second)
-}
-```
-
-> [!TIP]
-> O pacote `context` é a forma idiomática em Go para propagar cancelamento, deadlines e valores entre goroutines, especialmente em servidores HTTP e sistemas distribuídos.
+!!! danger "Cuidado — Goroutine Leak em Pipelines"
+    Se um consumidor parar de ler antes do produtor terminar, o produtor ficará **bloqueado para sempre**. Use `context.WithCancel` para sinalizar cancelamento em toda a cadeia do pipeline.
 
 ---
 
-## Goroutine Leak — O que Evitar
-
-Uma goroutine leak acontece quando uma goroutine fica bloqueada para sempre sem poder terminar:
-
-```go
-// ❌ GOROUTINE LEAK — o channel nunca é fechado
-func vazar() {
-    ch := make(chan int)
-    go func() {
-        v := <-ch  // bloqueia para sempre
-        fmt.Println(v)
-    }()
-    // ch nunca recebe valor, goroutine vaza!
-}
-
-// ✅ Use context ou close para sinalizar término
-func semVazar(ctx context.Context) {
-    ch := make(chan int)
-    go func() {
-        select {
-        case v := <-ch:
-            fmt.Println(v)
-        case <-ctx.Done():
-            return  // goroutine termina limpa
-        }
-    }()
-}
-```
-
----
-
-## Resumo: Channels vs. Mutex
+## Channels vs Mutex
 
 | Situação | Use |
 |----------|-----|
@@ -404,7 +199,4 @@ func semVazar(ctx context.Context) {
 | Pipeline de processamento | Channel |
 | Proteger estado compartilhado | Mutex |
 | Operações atômicas em inteiros | `sync/atomic` |
-| Execução única (singleton) | `sync.Once` |
-
-> [!NOTE]
-> A diretriz do Go é preferir channels quando possível, mas não há problema em usar mutex quando faz mais sentido. O importante é que o acesso concorrente ao estado seja **sempre sincronizado**.
+| Inicialização única (singleton) | `sync.Once` |
