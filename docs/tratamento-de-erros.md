@@ -1,367 +1,173 @@
-# Tratamento de Erros
+# ⚠️ Tratamento de Erros
 
-Go adota uma filosofia radicalmente diferente da maioria das linguagens para o tratamento de erros: **erros são valores**, não exceções. Não existe `try/catch`. Em vez disso, funções retornam o erro como último valor de retorno, e o chamador é responsável por verificá-lo explicitamente.
-
-Essa abordagem torna o fluxo de erros **visível, explícito e rastreável** no código.
+Em Go, **erros são valores** — não exceções. Não existe `try/catch`. Funções retornam o erro como último valor e o chamador verifica explicitamente.
 
 ---
 
-## O Tipo `error`
+## Fluxo de Tratamento de Erros
 
-`error` é uma interface nativa do Go:
+```mermaid
+flowchart TD
+    A[Chamada de função] --> B{Retornou erro?}
+    B -->|err != nil| C[Tratar o erro]
+    B -->|err == nil| D[Usar o resultado]
+    C --> E{Tipo do erro?}
+    E -->|Recuperável| F[Retornar erro\ncom contexto]
+    E -->|Fatal| G[panic]
+    F --> H[Chamador decide]
+    D --> I[Continua execução]
 
-```go
-type error interface {
-    Error() string
-}
+    style A fill:#00d4b4,color:#000
+    style B fill:#0099ff,color:#fff
+    style G fill:#ef476f,color:#fff
+    style I fill:#06d6a0,color:#000
 ```
 
-Qualquer tipo que implementar o método `Error() string` satisfaz a interface `error`.
-
 ---
 
-## Retornando e Verificando Erros
+## Padrão Básico
 
-O padrão idiomático em Go é retornar `(resultado, error)`:
-
-```go
-package main
-
-import (
-    "errors"
-    "fmt"
-)
-
-func dividir(a, b float64) (float64, error) {
+```go 
+func dividir(a, b float64) (float64, error) { // (1)!
     if b == 0 {
-        return 0, errors.New("divisão por zero não é permitida")
+        return 0, errors.New("divisão por zero") // (2)!
     }
-    return a / b, nil  // nil significa "sem erro"
+    return a / b, nil // (3)!
 }
 
-func main() {
-    resultado, err := dividir(10, 2)
-    if err != nil {
-        fmt.Println("Erro:", err)
-        return
-    }
-    fmt.Printf("10 / 2 = %.1f\n", resultado) // 10 / 2 = 5.0
-
-    _, err = dividir(5, 0)
-    if err != nil {
-        fmt.Println("Erro:", err) // Erro: divisão por zero não é permitida
-    }
+resultado, err := dividir(10, 2) // (4)!
+if err != nil { // (5)!
+    fmt.Println("Erro:", err)
+    return
 }
+fmt.Println(resultado) // 5
 ```
 
-> [!NOTE]
-> **`nil`** representa a ausência de erro. Sempre verifique `if err != nil` antes de usar o resultado de uma função que pode falhar.
+1. 📤 Convenção Go: `error` é sempre o **último valor de retorno**.
+2. ❌ `errors.New` cria um erro simples com mensagem de texto.
+3. ✅ `nil` representa **ausência de erro** — retorne sempre que der certo.
+4. 📥 Dois valores de retorno: resultado e possível erro.
+5. 🔍 **Sempre verifique** `err != nil` antes de usar o resultado.
+
+!!! info "Interface error"
+    O tipo `error` é uma **interface nativa** do Go:
+    ```go
+    type error interface {
+        Error() string
+    }
+    ```
+    Qualquer tipo que implemente `Error() string` satisfaz a interface.
 
 ---
 
-## Criando Erros
+## Erros com Contexto — `fmt.Errorf`
 
-### `errors.New`
-
-```go
-import "errors"
-
-err := errors.New("algo deu errado")
-```
-
-### `fmt.Errorf` — Erros com contexto
-
-```go
-import "fmt"
-
-nome := "arquivo.txt"
-err := fmt.Errorf("não foi possível abrir o arquivo '%s': permissão negada", nome)
-fmt.Println(err)
-// não foi possível abrir o arquivo 'arquivo.txt': permissão negada
-```
-
-### `fmt.Errorf` com `%w` — Wrapping de Erros
-
-O verbo `%w` permite **envolver (wrap)** um erro em outro, preservando a cadeia de contexto:
-
-```go
+```go 
 erroOriginal := errors.New("conexão recusada")
-erroContexto := fmt.Errorf("falha ao conectar ao banco de dados: %w", erroOriginal)
+
+erroContexto := fmt.Errorf("falha ao conectar ao banco: %w", erroOriginal) // (1)!
+
+if errors.Is(erroContexto, erroOriginal) { // (2)!
+    fmt.Println("É um erro de conexão!")
+}
 
 fmt.Println(erroContexto)
-// falha ao conectar ao banco de dados: conexão recusada
+// falha ao conectar ao banco: conexão recusada
 ```
+
+1. 📦 O verbo `%w` **envolve (wraps)** o erro original preservando a cadeia.
+2. 🔍 `errors.Is` verifica se um erro **contém** o erro alvo na cadeia.
+
+!!! tip "Dica — Sempre adicione contexto"
+    Ao propagar erros, adicione contexto com `fmt.Errorf`:
+    ```go
+    return fmt.Errorf("ao processar pedido %d: %w", id, err)
+    ```
+    Isso cria uma trilha clara de onde o erro originou.
 
 ---
 
-## Tipos de Erro Customizados
+## Erros Customizados
 
-Para erros mais ricos (com campos adicionais), implemente a interface `error`:
-
-```go
-type ErroValidacao struct {
-    Campo   string
+```go 
+type ErroValidacao struct { // (1)!
+    Campo    string
     Mensagem string
 }
 
-func (e *ErroValidacao) Error() string {
-    return fmt.Sprintf("validação falhou no campo '%s': %s", e.Campo, e.Mensagem)
+func (e *ErroValidacao) Error() string { // (2)!
+    return fmt.Sprintf("campo '%s': %s", e.Campo, e.Mensagem)
 }
 
 func validarIdade(idade int) error {
     if idade < 0 {
-        return &ErroValidacao{Campo: "idade", Mensagem: "não pode ser negativa"}
-    }
-    if idade > 150 {
-        return &ErroValidacao{Campo: "idade", Mensagem: "valor improvável"}
+        return &ErroValidacao{Campo: "idade", Mensagem: "não pode ser negativa"} // (3)!
     }
     return nil
 }
 
-func main() {
-    if err := validarIdade(-5); err != nil {
-        fmt.Println(err)
-        // validação falhou no campo 'idade': não pode ser negativa
-    }
+var valErr *ErroValidacao
+if errors.As(err, &valErr) { // (4)!
+    fmt.Println("Campo com problema:", valErr.Campo)
 }
 ```
 
----
-
-## `errors.Is` — Comparando Erros
-
-Use `errors.Is` para verificar se um erro é (ou contém) um erro específico:
-
-```go
-import (
-    "errors"
-    "fmt"
-)
-
-var ErrNaoEncontrado = errors.New("registro não encontrado")
-
-func buscarUsuario(id int) error {
-    if id != 42 {
-        return fmt.Errorf("buscarUsuario(%d): %w", id, ErrNaoEncontrado)
-    }
-    return nil
-}
-
-func main() {
-    err := buscarUsuario(99)
-
-    if errors.Is(err, ErrNaoEncontrado) {
-        fmt.Println("Usuário não existe no sistema")
-    }
-
-    fmt.Println(err)
-    // buscarUsuario(99): registro não encontrado
-}
-```
-
-> [!TIP]
-> Defina **erros sentinela** (variáveis globais de erro) com `var ErrAlgo = errors.New(...)` para que os chamadores possam comparar com `errors.Is`. Isso é preferível a comparar strings de erro.
-
----
-
-## `errors.As` — Extraindo Tipo de Erro
-
-Use `errors.As` para verificar e extrair um erro de um tipo específico na cadeia:
-
-```go
-type ErroHTTP struct {
-    Codigo  int
-    Detalhe string
-}
-
-func (e *ErroHTTP) Error() string {
-    return fmt.Sprintf("HTTP %d: %s", e.Codigo, e.Detalhe)
-}
-
-func fazerRequisicao(url string) error {
-    return fmt.Errorf("falha na requisição para %s: %w", url,
-        &ErroHTTP{Codigo: 404, Detalhe: "página não encontrada"})
-}
-
-func main() {
-    err := fazerRequisicao("https://exemplo.com/pagina")
-
-    var httpErr *ErroHTTP
-    if errors.As(err, &httpErr) {
-        fmt.Printf("Código HTTP: %d\n", httpErr.Codigo)   // 404
-        fmt.Printf("Detalhe: %s\n", httpErr.Detalhe)      // página não encontrada
-    }
-}
-```
-
----
-
-## Múltiplos Erros com `errors.Join` (Go 1.20+)
-
-```go
-import "errors"
-
-err1 := errors.New("campo 'nome' obrigatório")
-err2 := errors.New("campo 'email' inválido")
-err3 := errors.New("campo 'idade' deve ser positivo")
-
-errosCombinados := errors.Join(err1, err2, err3)
-fmt.Println(errosCombinados)
-```
-
-**Saída:**
-```
-campo 'nome' obrigatório
-campo 'email' inválido
-campo 'idade' deve ser positivo
-```
-
----
-
-## `panic` e `recover`
-
-Em situações **verdadeiramente excepcionais** (bugs, estados inválidos irreparáveis), Go tem `panic` e `recover`.
-
-### `panic`
-
-Interrompe a execução e desempilha o stack:
-
-```go
-func acessarIndice(s []int, i int) int {
-    if i >= len(s) {
-        panic(fmt.Sprintf("índice %d fora do range (len=%d)", i, len(s)))
-    }
-    return s[i]
-}
-```
-
-### `recover`
-
-Captura um `panic` em andamento — **deve ser usado dentro de um `defer`**:
-
-```go
-func executarComSeguranca(f func()) (err error) {
-    defer func() {
-        if r := recover(); r != nil {
-            err = fmt.Errorf("panic capturado: %v", r)
-        }
-    }()
-    f()
-    return nil
-}
-
-func main() {
-    err := executarComSeguranca(func() {
-        panic("algo muito errado aconteceu!")
-    })
-
-    if err != nil {
-        fmt.Println("Recuperado:", err)
-        // Recuperado: panic capturado: algo muito errado aconteceu!
-    }
-}
-```
-
-> [!WARNING]
-> **Não use `panic` para tratamento de erros normais.** Use-o apenas para erros que representam bugs no código (violações de invariantes, estados impossíveis). Para erros esperados (arquivo não encontrado, input inválido), use o retorno de `error`.
+1. 🏗️ Struct customizada que vai representar o erro com campos extras.
+2. 🔤 Implementa a interface `error` definindo o método `Error() string`.
+3. 📤 Retorna um ponteiro para o erro customizado.
+4. 🎯 `errors.As` extrai o erro de um **tipo específico** na cadeia.
 
 ---
 
 ## `defer` — Garantindo Limpeza
 
-`defer` adia a execução de uma função para quando a função atual retornar — muito útil para liberar recursos:
+```mermaid
+flowchart LR
+    A[Abre arquivo] --> B[defer Close]
+    B --> C[Processa dados]
+    C --> D{Erro?}
+    D -->|sim| E[return erro]
+    D -->|não| F[return nil]
+    E --> G[Close executado automaticamente]
+    F --> G
 
-```go
-import "os"
+    style G fill:#06d6a0,color:#000
+    style B fill:#0099ff,color:#fff
+```
 
+```go 
 func processarArquivo(nome string) error {
     arquivo, err := os.Open(nome)
     if err != nil {
-        return fmt.Errorf("ao abrir arquivo: %w", err)
+        return fmt.Errorf("ao abrir: %w", err)
     }
-    defer arquivo.Close() // garantido mesmo se houver erro abaixo
+    defer arquivo.Close() // (1)!
 
     // ... processamento ...
     return nil
 }
-```
 
-```go
-// Múltiplos defers — executam em ordem LIFO (último a entrar, primeiro a sair)
 func exemplo() {
-    defer fmt.Println("terceiro")
+    defer fmt.Println("terceiro") // (2)!
     defer fmt.Println("segundo")
     defer fmt.Println("primeiro")
     fmt.Println("executando...")
 }
-// Saída:
-// executando...
-// primeiro
-// segundo
-// terceiro
+// executando... → primeiro → segundo → terceiro
 ```
 
----
+1. 🔒 `defer` garante que `Close()` será chamado **quando a função retornar**, mesmo em caso de erro.
+2. 📚 Múltiplos `defer` executam em ordem **LIFO** (último a entrar, primeiro a sair).
 
-## Padrões Práticos de Tratamento de Erros
+!!! warning "Atenção — panic vs error"
+    Não use `panic` para erros esperados. Use a tabela abaixo para decidir:
 
-### Padrão "Fail Fast"
+    | Situação | Use |
+    |----------|-----|
+    | Erro esperado e recuperável | Retorne `error` |
+    | Bug no código (impossível) | `panic` |
+    | Liberar recursos | `defer` |
+    | Recuperar de panic em servidor | `recover` em `defer` |
 
-```go
-func processarPedido(id int) error {
-    pedido, err := buscarPedido(id)
-    if err != nil {
-        return fmt.Errorf("processarPedido: %w", err)
-    }
-
-    if err := validarPedido(pedido); err != nil {
-        return fmt.Errorf("processarPedido: %w", err)
-    }
-
-    if err := cobrarCliente(pedido); err != nil {
-        return fmt.Errorf("processarPedido: %w", err)
-    }
-
-    return nil
-}
-```
-
-### Agrupando Verificações com Helper
-
-```go
-type ErrHandler struct {
-    err error
-}
-
-func (e *ErrHandler) Do(f func() error) {
-    if e.err == nil {
-        e.err = f()
-    }
-}
-
-func main() {
-    eh := &ErrHandler{}
-
-    eh.Do(abrirConexao)
-    eh.Do(lerDados)
-    eh.Do(processar)
-
-    if eh.err != nil {
-        fmt.Println("Erro:", eh.err)
-    }
-}
-```
-
----
-
-## Resumo: Filosofia de Erros em Go
-
-| Situação | Abordagem |
-|----------|-----------|
-| Erro esperado e recuperável | Retorne `error` como último valor |
-| Erro de programação (bug) | `panic` |
-| Recuperar de panic em servidor | `recover` em `defer` |
-| Liberar recursos | `defer` |
-| Comparar erros | `errors.Is` |
-| Extrair tipo de erro | `errors.As` |
-| Adicionar contexto ao erro | `fmt.Errorf("contexto: %w", err)` |
+!!! danger "Cuidado — panic em produção"
+    Um `panic` não recuperado **derruba o programa inteiro**. Em servidores HTTP, sempre use `recover` em um middleware para capturar panics e retornar HTTP 500 ao cliente, evitando derrubar o servidor.
