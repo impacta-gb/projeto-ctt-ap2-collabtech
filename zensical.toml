@@ -94,16 +94,20 @@ permalink = true
 [[nav]]
 "🏠 Início" = "index.md"
 
+# Definindo a sequência das páginas para a paginação funcionar:
+[[nav]]
+"🏠 Início" = "index.md"
+
 [[nav]]
 [nav.Fundamentos]
 "🚀 Introdução e Instalação" = "introducao-e-instalacao.md"
 "📝 Sintaxe Básica e Variáveis" = "sintaxe-basica-e-variaveis.md"
-"🔀 Estruturas de Controle" = "estruturas-de-controle.md"
+"🗺️ Estruturas de Controle" = "estruturas-de-controle.md"
 
 [[nav]]
 [nav."Estruturas de Dados"]
 "📦 Arrays, Slices e Maps" = "arrays-slices-e-maps.md"
-"🏗️ Structs e Métodos" = "structs-e-metodos.md"
+"🧰 Structs e Métodos" = "structs-e-metodos.md"
 
 [[nav]]
 [nav.Avancado]
@@ -112,5 +116,6 @@ permalink = true
 "🔗 Channels" = "concorrencia-channels.md"
 "📦 Gerenciamento de Pacotes" = "gerenciamento-de-pacotes.md"
 
+[[nav]]
 [nav.Extra]
-"✅ Testes Automatizados" = "zz-testes-automatizados.md"
+"✅ Testes Automatizados" = "testes-automatizados.md"
