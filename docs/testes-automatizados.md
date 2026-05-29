@@ -1,411 +1,189 @@
-# Testes Automatizados em Go
+# ✅ Testes Automatizados em Go
 
-Go tem suporte nativo e de primeira classe para testes — sem precisar de frameworks externos. O pacote `testing` da biblioteca padrão, combinado com o comando `go test`, oferece tudo que é necessário para escrever testes unitários, de benchmark e de exemplo.
-
----
-
-## Por que Testar em Go?
-
-- Testes são **cidadãos de primeira classe** — integrados ao toolchain
-- A convenção é **simples e direta** — sem anotações ou magia
-- `go test` descobre e executa testes **automaticamente**
-- Suporte nativo a **benchmarks**, **exemplos** e **fuzzing** (Go 1.18+)
+Go tem suporte nativo a testes — sem frameworks externos. O pacote `testing` e o comando `go test` fazem tudo.
 
 ---
 
-## Estrutura Básica de um Teste
+## Fluxo de Testes
 
-Por convenção:
+```mermaid
+flowchart LR
+    C[Código\n.go] --> T[Teste\n_test.go]
+    T --> GT[go test]
+    GT --> U[Unitário\nTestXxx]
+    GT --> B[Benchmark\nBenchmarkXxx]
+    GT --> E[Exemplo\nExampleXxx]
+    GT --> F[Fuzzing\nFuzzXxx]
+    U --> R{Resultado}
+    R -->|PASS| G[✅ Verde]
+    R -->|FAIL| X[❌ Vermelho]
 
-- Arquivos de teste terminam com `_test.go`
-- Funções de teste começam com `Test` e recebem `*testing.T`
-- O arquivo de teste fica no **mesmo pacote** do código testado
-
-```
-calculadora/
-├── calculadora.go
-└── calculadora_test.go
-```
-
-```go
-// calculadora.go
-package calculadora
-
-func Somar(a, b float64) float64 {
-    return a + b
-}
-
-func Dividir(a, b float64) (float64, error) {
-    if b == 0 {
-        return 0, fmt.Errorf("divisão por zero")
-    }
-    return a / b, nil
-}
+    style GT fill:#00d4b4,color:#000
+    style G fill:#06d6a0,color:#000
+    style X fill:#ef476f,color:#fff
 ```
 
-```go
+---
+
+## Estrutura Básica
+
+```go 
 // calculadora_test.go
-package calculadora
+package calculadora // (1)!
 
-import (
-    "testing"
-)
+import "testing" // (2)!
 
-func TestSomar(t *testing.T) {
+func TestSomar(t *testing.T) { // (3)!
     resultado := Somar(2, 3)
     esperado := 5.0
 
-    if resultado != esperado {
-        t.Errorf("Somar(2, 3) = %.1f; esperado %.1f", resultado, esperado)
+    if resultado != esperado { // (4)!
+        t.Errorf("Somar(2, 3) = %.1f; esperado %.1f",
+            resultado, esperado)
     }
 }
 ```
 
-### Executando os Testes
+1. 📦 Mesmo pacote do código — acesso a funções não exportadas.
+2. 📋 Único import necessário — não precisa de framework externo.
+3. 🧪 Nome **obrigatoriamente** começa com `Test` e recebe `*testing.T`.
+4. 🔍 Verificação manual — Go não tem `assert` nativo por design.
 
-```bash
-# Rodar todos os testes no diretório atual
-go test ./...
-
-# Rodar testes de um pacote específico
-go test ./calculadora/...
-
-# Modo verbose (mostra o nome de cada teste)
-go test -v ./...
-
-# Rodar um teste específico
-go test -run TestSomar ./...
+```bash 
+go test ./...           # (1)!
+go test -v ./...        # (2)!
+go test -run TestSomar  # (3)!
+go test -cover ./...    # (4)!
+go test -race ./...     # (5)!
 ```
 
-**Saída verbose:**
-```
-=== RUN   TestSomar
---- PASS: TestSomar (0.00s)
-PASS
-ok      github.com/exemplo/calculadora  0.001s
-```
+1. 🔍 Executa todos os testes do projeto recursivamente.
+2. 📢 Modo **verbose** — exibe o nome de cada teste executado.
+3. 🎯 Executa apenas testes que correspondem ao padrão (regex).
+4. 📊 Exibe o **percentual de cobertura** de código.
+5. 🔒 Detecta **race conditions** — sempre use no CI/CD.
 
 ---
 
-## Métodos do `testing.T`
+## Table-Driven Tests — O Padrão Go
 
-| Método | Descrição |
-|--------|-----------|
-| `t.Errorf(fmt, ...)` | Registra falha mas **continua** o teste |
-| `t.Fatalf(fmt, ...)` | Registra falha e **para** o teste imediatamente |
-| `t.Logf(fmt, ...)` | Loga mensagem (visível com `-v`) |
-| `t.Fail()` | Marca o teste como falho (continua) |
-| `t.FailNow()` | Marca como falho e para imediatamente |
-| `t.Skip(msg)` | Pula o teste com uma mensagem |
-| `t.Helper()` | Marca como helper (melhora relatórios de erro) |
-
----
-
-## Table-Driven Tests (Testes com Tabela)
-
-O padrão mais comum em Go: define casos de teste como uma tabela de structs:
-
-```go
+```go 
 func TestDividir(t *testing.T) {
-    casos := []struct {
+    casos := []struct { // (1)!
         nome     string
-        a        float64
-        b        float64
+        a, b     float64
         esperado float64
         erro     bool
     }{
-        {"divisão simples", 10, 2, 5, false},
-        {"divisão com decimal", 7, 2, 3.5, false},
-        {"divisão por zero", 5, 0, 0, true},
-        {"zero dividido", 0, 5, 0, false},
-        {"negativos", -10, 2, -5, false},
+        {"simples",    10, 2,  5,    false},
+        {"decimal",    7,  2,  3.5,  false},
+        {"por zero",   5,  0,  0,    true},
+        {"negativos", -10, 2, -5,   false},
     }
 
     for _, tc := range casos {
-        t.Run(tc.nome, func(t *testing.T) {
+        t.Run(tc.nome, func(t *testing.T) { // (2)!
             resultado, err := Dividir(tc.a, tc.b)
 
-            if tc.erro {
-                if err == nil {
-                    t.Errorf("esperava erro, mas não houve")
-                }
+            if tc.erro && err == nil { // (3)!
+                t.Error("esperava erro, mas não houve")
                 return
             }
-
-            if err != nil {
-                t.Fatalf("erro inesperado: %v", err)
-            }
-
-            if resultado != tc.esperado {
-                t.Errorf("Dividir(%.1f, %.1f) = %.1f; esperado %.1f",
-                    tc.a, tc.b, resultado, tc.esperado)
+            if !tc.erro && resultado != tc.esperado {
+                t.Errorf("got %v; want %v", resultado, tc.esperado)
             }
         })
     }
 }
 ```
 
-**Saída:**
-```
-=== RUN   TestDividir
-=== RUN   TestDividir/divisão_simples
-=== RUN   TestDividir/divisão_com_decimal
-=== RUN   TestDividir/divisão_por_zero
-=== RUN   TestDividir/zero_dividido
-=== RUN   TestDividir/negativos
---- PASS: TestDividir (0.00s)
-```
+1. 📊 **Slice de structs anônimas** — cada elemento é um caso de teste.
+2. 🏷️ `t.Run` cria **subtestes nomeados** — falhas indicam exatamente qual caso falhou.
+3. ✅ Teste do caminho de erro — verifica que erros esperados realmente ocorrem.
 
-> [!TIP]
-> O padrão de **Table-Driven Tests** é o idioma Go padrão para testes. Ele torna fácil adicionar novos casos, melhora a legibilidade e isola falhas por subteste.
-
----
-
-## Setup e Teardown com `TestMain`
-
-Para executar código antes e depois de todos os testes do pacote:
-
-```go
-package calculadora
-
-import (
-    "fmt"
-    "os"
-    "testing"
-)
-
-func TestMain(m *testing.M) {
-    fmt.Println("🚀 Inicializando ambiente de teste...")
-
-    // Setup: conectar DB, criar arquivos temporários, etc.
-
-    codigo := m.Run() // executa todos os testes
-
-    // Teardown: limpar recursos
-    fmt.Println("🧹 Limpando ambiente de teste...")
-
-    os.Exit(codigo)
-}
-```
-
-### `t.Cleanup` — Limpeza por Teste
-
-```go
-func TestComBancoDeDados(t *testing.T) {
-    db := abrirBancoDeTeste()
-
-    t.Cleanup(func() {
-        db.Close()        // executado ao final do teste
-        limparTabelas(db) // mesmo se o teste falhar
-    })
-
-    // ... teste ...
-}
-```
+!!! tip "Dica — Por que Table-Driven?"
+    É o padrão idiomático Go porque:
+    
+    - Fácil de **adicionar novos casos** sem duplicar código
+    - Cada caso tem um **nome descritivo** nos relatórios
+    - Falhas indicam **exatamente qual cenário** quebrou
 
 ---
 
 ## Benchmarks
 
-Funções de benchmark começam com `Benchmark` e recebem `*testing.B`:
-
-```go
-func BenchmarkSomar(b *testing.B) {
-    for i := 0; i < b.N; i++ {
-        Somar(10, 20) // executado b.N vezes
-    }
-}
-
-func BenchmarkDividir(b *testing.B) {
-    for i := 0; i < b.N; i++ {
-        Dividir(100, 7)
+```go 
+func BenchmarkSomar(b *testing.B) { // (1)!
+    for i := 0; i < b.N; i++ { // (2)!
+        Somar(10, 20)
     }
 }
 ```
 
-```bash
-# Executar benchmarks
-go test -bench=. ./...
+1. 🏎️ Nome começa com `Benchmark` e recebe `*testing.B`.
+2. 🔢 `b.N` é ajustado **automaticamente** pelo framework para medições confiáveis.
 
-# Com relatório de alocações de memória
+```bash
 go test -bench=. -benchmem ./...
-```
-
-**Saída:**
-```
-BenchmarkSomar-8     1000000000   0.2541 ns/op
-BenchmarkDividir-8   765432100    1.567 ns/op   0 B/op   0 allocs/op
-```
-
-> [!NOTE]
-> `b.N` é ajustado automaticamente pelo framework para obter medições estatisticamente confiáveis. Nunca codifique um valor fixo para `b.N`.
-
----
-
-## Testes de Exemplo (Examples)
-
-Funções de exemplo começam com `Example` e servem como **documentação executável**:
-
-```go
-func ExampleSomar() {
-    resultado := Somar(3, 4)
-    fmt.Println(resultado)
-    // Output: 7
-}
-
-func ExampleDividir() {
-    resultado, err := Dividir(10, 2)
-    if err != nil {
-        fmt.Println("Erro:", err)
-        return
-    }
-    fmt.Println(resultado)
-    // Output: 5
-}
-```
-
-- O `// Output:` é verificado pelo `go test`
-- Aparece automaticamente no `go doc` e em [pkg.go.dev](https://pkg.go.dev)
-
----
-
-## Cobertura de Testes
-
-```bash
-# Exibe percentual de cobertura
-go test -cover ./...
-
-# Gera relatório detalhado
-go test -coverprofile=coverage.out ./...
-go tool cover -html=coverage.out  # abre no navegador
-
-# Modo de cobertura por instruções (padrão) ou branches
-go test -covermode=atomic ./...
 ```
 
 **Exemplo de saída:**
 ```
-ok      github.com/exemplo/calculadora   coverage: 87.5% of statements
+BenchmarkSomar-8    1000000000    0.25 ns/op    0 B/op    0 allocs/op
 ```
-
-> [!TIP]
-> Almeje cobertura alta nos caminhos críticos, não necessariamente 100% do código. Testar casos de erro e edge cases é mais valioso do que atingir 100% de cobertura em código trivial.
 
 ---
 
-## Testando com Mocks — Interfaces
+## Testando com Mocks via Interfaces
 
-A forma idiomática de testar código com dependências externas em Go é usar **interfaces**:
+```mermaid
+graph LR
+    T[Teste] -->|usa| M[EmailMock]
+    P[Produção] -->|usa| R[EmailReal SMTP]
+    M -->|implementa| I[EmailSender\ninterface]
+    R -->|implementa| I
 
-```go
-// producao.go
-package servico
+    style I fill:#00d4b4,color:#000
+    style M fill:#0099ff,color:#fff
+```
 
-type EmailSender interface {
+```go 
+type EmailSender interface { // (1)!
     Enviar(para, assunto, corpo string) error
 }
 
-type Notificador struct {
-    email EmailSender
-}
-
-func (n *Notificador) NotificarUsuario(usuario, mensagem string) error {
-    return n.email.Enviar(
-        usuario+"@empresa.com",
-        "Notificação",
-        mensagem,
-    )
-}
-```
-
-```go
-// notificador_test.go
-package servico
-
-import (
-    "fmt"
-    "testing"
-)
-
-// Mock do EmailSender
-type emailMock struct {
-    ultimoEnvio struct {
-        para    string
-        assunto string
-    }
-    erroSimulado error
+type emailMock struct { // (2)!
+    ultimoPara string
 }
 
 func (m *emailMock) Enviar(para, assunto, corpo string) error {
-    m.ultimoEnvio.para = para
-    m.ultimoEnvio.assunto = assunto
-    return m.erroSimulado
+    m.ultimoPara = para
+    return nil
 }
 
-func TestNotificarUsuario(t *testing.T) {
-    mock := &emailMock{}
+func TestNotificar(t *testing.T) {
+    mock := &emailMock{} // (3)!
     notif := &Notificador{email: mock}
 
-    err := notif.NotificarUsuario("alice", "Bem-vinda!")
-    if err != nil {
-        t.Fatalf("erro inesperado: %v", err)
-    }
+    notif.NotificarUsuario("alice", "Bem-vinda!")
 
-    if mock.ultimoEnvio.para != "alice@empresa.com" {
-        t.Errorf("email enviado para %q; esperado %q",
-            mock.ultimoEnvio.para, "alice@empresa.com")
-    }
-}
-
-func TestNotificarUsuarioComErro(t *testing.T) {
-    mock := &emailMock{erroSimulado: fmt.Errorf("servidor SMTP indisponível")}
-    notif := &Notificador{email: mock}
-
-    err := notif.NotificarUsuario("bob", "Olá!")
-    if err == nil {
-        t.Error("esperava erro, mas não houve")
+    if mock.ultimoPara != "alice@empresa.com" { // (4)!
+        t.Errorf("email enviado para %q; esperado alice@empresa.com", mock.ultimoPara)
     }
 }
 ```
 
----
+1. 📋 Interface define o contrato — separa implementação real do mock.
+2. 🃏 **Mock** implementa a interface mas não envia email de verdade.
+3. 🔌 Injeta o mock via **injeção de dependência**.
+4. ✅ Verifica o comportamento sem depender de servidor SMTP real.
 
-## Fuzzing (Go 1.18+)
+!!! warning "Atenção — Cobertura não é tudo"
+    100% de cobertura **não garante** ausência de bugs. Foque em:
+    
+    - Cobrir todos os **caminhos de erro**
+    - Testar **edge cases** (valores limite, strings vazias, nil)
+    - Usar `-race` no CI para detectar race conditions
 
-Fuzzing gera automaticamente entradas aleatórias para encontrar bugs:
-
-```go
-func FuzzSomar(f *testing.F) {
-    // Casos semente
-    f.Add(1.0, 2.0)
-    f.Add(-5.0, 10.0)
-
-    f.Fuzz(func(t *testing.T, a, b float64) {
-        resultado := Somar(a, b)
-        // Propriedade que deve sempre ser verdadeira
-        if resultado != a+b {
-            t.Errorf("Somar(%v, %v) = %v; esperado %v", a, b, resultado, a+b)
-        }
-    })
-}
-```
-
-```bash
-# Executar fuzzing por 30 segundos
-go test -fuzz=FuzzSomar -fuzztime=30s ./...
-```
-
----
-
-## Boas Práticas de Testes em Go
-
-| ✅ Faça | ❌ Evite |
-|--------|---------|
-| Use Table-Driven Tests | Duplicar lógica de teste |
-| Nomeie subtestes com `t.Run` | Testes sem contexto claro |
-| Teste comportamento, não implementação | Testar detalhes internos |
-| Use interfaces para dependências | Dependências hardcoded |
-| Use `-race` no CI | Ignorar race conditions |
-| Escreva testes de exemplo | Documentação só em comentários |
-| `t.Cleanup` para liberar recursos | Vazamento de recursos em testes |
-| Execute `go test -cover` | Cobertura desconhecida |
+!!! danger "Cuidado — Testes frágeis"
+    Evite testar **detalhes de implementação internos**. Teste apenas o **comportamento observável** (entradas e saídas). Testes acoplados à implementação quebram a cada refatoração, mesmo quando o comportamento continua correto.
