@@ -147,3 +147,4 @@ Tecnologias Utilizadas
 Publicação
 
 A documentação é gerada automaticamente e publicada através do GitHub Pages utilizando GitHub Actions.
+INTEGRANTES DO GRUPO: Isabella Macedo Marques, Maria Eduarda Chaves dos Santos e Rodrigo Torres Caires 
