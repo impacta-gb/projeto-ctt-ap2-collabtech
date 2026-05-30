@@ -53,7 +53,8 @@ A documentação foi construída utilizando Zensical e Markdown, contemplando os
 * Arrays, Slices e Maps
 * Structs e Métodos
 * Tratamento de Erros
-* Goroutines e Channels
+* Goroutines
+* Channels
 * Go Modules
 * Testes
 
