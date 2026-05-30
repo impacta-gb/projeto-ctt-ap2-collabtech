@@ -67,7 +67,7 @@ Workflow
 
 Arquivo:
 
-.github/workflows/ci.yml
+.github/workflows/docs.yml
 
 Eventos Monitorados
 
